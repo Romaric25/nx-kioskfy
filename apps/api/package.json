@@ -1,0 +1,132 @@
+{
+  "name": "@kioskfy/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "prebuild": "npx @workflow/nest init --force && node scripts/patch-swcrc.js",
+    "build": "nest build",
+    "start:dev": "npx @workflow/nest init --force && node scripts/patch-swcrc.js && nest start --watch --port 3000",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "nx": {
+    "targets": {
+      "dev": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "nest start --watch",
+          "cwd": "apps/api"
+        }
+      },
+      "prebuild": {
+        "dependsOn": [],
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "npx @workflow/nest init --force && node scripts/patch-swcrc.js",
+          "cwd": "apps/api"
+        }
+      },
+      "build": {
+        "dependsOn": [
+          "prebuild"
+        ],
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "nest build",
+          "cwd": "apps/api"
+        }
+      },
+      "prune-lockfile": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "executor": "@nx/js:prune-lockfile",
+        "outputs": [
+          "{workspaceRoot}/apps/api/dist/package.json",
+          "{workspaceRoot}/apps/api/dist/bun.lock"
+        ],
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "copy-workspace-modules": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "outputs": [
+          "{workspaceRoot}/apps/api/dist/workspace_modules"
+        ],
+        "executor": "@nx/js:copy-workspace-modules",
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "prune": {
+        "dependsOn": [
+          "prune-lockfile",
+          "copy-workspace-modules"
+        ],
+        "executor": "nx:noop"
+      },
+      "serve": {
+        "continuous": true,
+        "executor": "@nx/js:node",
+        "defaultConfiguration": "development",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "buildTarget": "@kioskfy/api:build",
+          "runBuildTargetDependencies": false
+        },
+        "configurations": {
+          "development": {
+            "buildTarget": "@kioskfy/api:build:development"
+          },
+          "production": {
+            "buildTarget": "@kioskfy/api:build:production"
+          }
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1096.0",
+    "@aws-sdk/s3-request-presigner": "^3.1096.0",
+    "@better-auth/expo": "^1.6.23",
+    "@elysiajs/eden": "^1.4.9",
+    "@maxmind/geoip2-node": "^7.1.0",
+    "@nestjs/common": "^11.1.28",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.28",
+    "@nestjs/platform-express": "^11.1.28",
+    "@nestjs/swagger": "^11.4.6",
+    "@node-rs/argon2": "^2.0.2",
+    "@scalar/nestjs-api-reference": "^1.2.11",
+    "@thallesp/nestjs-better-auth": "^2.7.0",
+    "@workflow/nest": "^4.0.12",
+    "better-auth": "^1.6.23",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^1.27.0",
+    "mysql2": "^3.23.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "sharp": "^0.35.3",
+    "tslib": "^2.8.1",
+    "workflow": "^4.6.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.1.28",
+    "@swc/cli": "^0.8.1",
+    "@swc/core": "^1.15.3",
+    "@types/multer": "^2.2.0",
+    "drizzle-kit": "^0.31.10"
+  }
+}

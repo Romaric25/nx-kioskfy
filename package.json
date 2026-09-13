@@ -1,0 +1,63 @@
+{
+  "name": "@kioskfy/source",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "NX_SOCKET_DIR=/tmp/nx-tmp npx nx reset 2>/dev/null || true",
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "start": "npm run start -w apps/web",
+    "typecheck": "npm run typecheck -w apps/web",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules package-lock.json bun.lock",
+    "nx": "NX_SOCKET_DIR=/tmp/nx-tmp nx",
+    "nx:build": "NX_SOCKET_DIR=/tmp/nx-tmp nx run-many -t build",
+    "nx:graph": "NX_SOCKET_DIR=/tmp/nx-tmp nx graph"
+  },
+  "private": true,
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "axios": "^1.6.0",
+    "drizzle-orm": "^0.45.2",
+    "mysql2": "^3.23.0",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.8.0",
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@nx/eslint": "23.1.0",
+    "@nx/eslint-plugin": "23.1.0",
+    "@nx/js": "23.1.0",
+    "@nx/nest": "23.1.0",
+    "@nx/node": "23.1.0",
+    "@nx/web": "23.1.0",
+    "@nx/webpack": "23.1.0",
+    "@swc/cli": "^0.8.1",
+    "@swc/core": "^1.15.43",
+    "@swc/helpers": "~0.5.23",
+    "@types/node": "^26.1.1",
+    "eslint": "^9.8.0",
+    "eslint-config-prettier": "^10.0.0",
+    "nx": "23.1.0",
+    "prettier": "~3.9.5",
+    "tslib": "^2.8.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.58.0",
+    "webpack": "^5.101.3",
+    "webpack-cli": "^7.0.0",
+    "webpack-dev-server": "^5.2.1"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "allowScripts": {
+    "@swc/cli@0.8.1": true,
+    "@swc/core@1.15.3": true,
+    "@maxmind/geoip2-node@7.1.0": true
+  }
+}

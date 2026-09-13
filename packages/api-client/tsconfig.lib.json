@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "paths": {
+      "@kioskfy/types": ["../types/dist/index.d.ts"],
+      "@kioskfy/types/accounting": ["../types/dist/accounting.types.d.ts"]
+    }
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,144 @@
+/* @kioskfy/ui — shadcn theme (CSS variables + Tailwind theme mapping).
+   Import this from the app's entry CSS AFTER @import "tailwindcss". */
+
+:root {
+  --background: #ffffff;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  /* Bogey Green Base: #157023 */
+  --primary: #157023;
+  --primary-foreground: #ffffff;
+  /* Bogey Green 90% light: #e8f1e9 */
+  --secondary: #e8f1e9;
+  --secondary-foreground: #1a2e1e;
+  /* Bogey Green 80% light: #d0e2d3 */
+  --muted: #d0e2d3;
+  --muted-foreground: #4b6351;
+  /* Bogey Green 70% light: #b9d4bd */
+  --accent: #b9d4bd;
+  --accent-foreground: #15291b;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  /* Bogey Green 80% light: #d0e2d3 */
+  --border: #d0e2d3;
+  --input: #d0e2d3;
+  /* Bogey Green 40% light: #73a97b */
+  --ring: #73a97b;
+  /* Chart colors using Bogey Green variations */
+  --chart-1: #68bd7d;
+  --chart-2: #4ba662;
+  --chart-3: #157023;
+  --chart-4: #0e4d18;
+  --chart-5: #07260c;
+  --radius: 0.625rem;
+  /* Bogey Green 90% light: #e8f1e9 */
+  --sidebar: #f8fbf8;
+  --sidebar-foreground: #09090b;
+  /* Bogey Green Base: #157023 */
+  --sidebar-primary: #157023;
+  --sidebar-primary-foreground: #ffffff;
+  /* Bogey Green 80% light: #d0e2d3 */
+  --sidebar-accent: #e8f1e9;
+  --sidebar-accent-foreground: #157023;
+  --sidebar-border: #e2e8e2;
+  --sidebar-ring: #157023;
+}
+
+.dark {
+  /* Dark base: #0b1215 */
+  --background: #020817;
+  --foreground: #f8fafc;
+  /* Slightly lighter for cards */
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  --popover: #0f172a;
+  --popover-foreground: #f8fafc;
+  /* Bogey Green 50% light: #8ab891 - brighter for dark mode */
+  --primary: #8ab891;
+  --primary-foreground: #020817;
+  /* Darker variation */
+  --secondary: #1e293b;
+  --secondary-foreground: #f8fafc;
+  /* Muted */
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  /* Accent */
+  --accent: #1e293b;
+  --accent-foreground: #f8fafc;
+  --destructive: #7f1d1d;
+  --destructive-foreground: #f8fafc;
+  /* Border */
+  --border: #1e293b;
+  --input: #1e293b;
+  /* Bogey Green 40% light: #73a97b */
+  --ring: #8ab891;
+  /* Chart colors */
+  --chart-1: #4ba662;
+  --chart-2: #388e4d;
+  --chart-3: #26763a;
+  --chart-4: #18602a;
+  --chart-5: #0e4b1e;
+  /* Sidebar */
+  --sidebar: #020817;
+  --sidebar-foreground: #f8fafc;
+  /* Bogey Green 50% light: #8ab891 */
+  --sidebar-primary: #8ab891;
+  --sidebar-primary-foreground: #020817;
+  /* Sidebar accent */
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #8ab891;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}

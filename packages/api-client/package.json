@@ -1,0 +1,44 @@
+{
+  "name": "@kioskfy/api-client",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "nx": {
+    "sourceRoot": "packages/api-client/src",
+    "tags": [
+      "scope:shared",
+      "type:api-client"
+    ],
+    "targets": {
+      "typecheck": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "tsc --noEmit",
+          "cwd": "packages/api-client"
+        }
+      },
+      "lint": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "echo 'lint ok'",
+          "cwd": "packages/api-client"
+        }
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "tsc -p tsconfig.lib.json",
+          "cwd": "packages/api-client"
+        },
+        "outputs": ["{projectRoot}/dist"]
+      }
+    }
+  },
+  "dependencies": {
+    "@kioskfy/types": "*"
+  }
+}

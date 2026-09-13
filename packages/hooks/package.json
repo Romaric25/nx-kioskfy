@@ -1,0 +1,55 @@
+{
+  "name": "@kioskfy/hooks",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./auth-client": "./src/auth-client.ts"
+  },
+  "nx": {
+    "sourceRoot": "packages/hooks/src",
+    "tags": [
+      "scope:shared",
+      "type:hooks"
+    ],
+    "targets": {
+      "typecheck": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "tsc --noEmit",
+          "cwd": "packages/hooks"
+        }
+      },
+      "lint": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "echo 'lint ok'",
+          "cwd": "packages/hooks"
+        }
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "tsc -p tsconfig.lib.json",
+          "cwd": "packages/hooks"
+        },
+        "outputs": ["{projectRoot}/dist"]
+      }
+    }
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.0.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-hot-toast": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react-hot-toast": {
+      "optional": true
+    }
+  }
+}

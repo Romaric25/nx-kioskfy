@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "../../../packages/ui/src/styles.css";
+
+/* Class-based dark mode for shadcn */
+@variant dark (&:where(.dark, .dark *));
+
+/* Tailwind scans the shared ui package for class names */
+@source "../../../packages/ui/src";
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
+  }
+}

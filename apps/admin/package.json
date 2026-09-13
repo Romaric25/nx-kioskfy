@@ -1,0 +1,39 @@
+{
+  "name": "@kioskfy/admin",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --port 3001",
+    "build": "vite build",
+    "start": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kioskfy/api-client": "*",
+    "@kioskfy/auth-client": "*",
+    "@kioskfy/types": "*",
+    "@kioskfy/ui": "*",
+    "@tanstack/react-devtools": "^0.10.8",
+    "@tanstack/react-form": "^1.33.5",
+    "@tanstack/react-router": "^1.170.18",
+    "@tanstack/react-router-devtools": "^1.167.0",
+    "@tanstack/react-start": "^1.168.28",
+    "@tanstack/react-table": "^8.21.3",
+    "lucide-react": "^0.462.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "recharts": "^2.15.0",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.20",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "typescript": "~5.9.3",
+    "vite": "^8.1.5"
+  }
+}
