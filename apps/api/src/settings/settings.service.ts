@@ -42,7 +42,7 @@ export class SettingsService {
 
   async update(updates: Record<string, any>) {
     await Promise.all(Object.entries(updates).map(async ([key, value]) => {
-      let stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
+      const stringValue = typeof value === "object" ? JSON.stringify(value) : String(value);
       const existing = await this.db.query.siteSettings.findFirst({ where: eq(siteSettings.key, key) });
 
       if (existing) {

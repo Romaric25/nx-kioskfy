@@ -15,11 +15,6 @@ import { useState } from "react";
 
 export const Route = createFileRoute("/")({ component: LoginPage });
 
-interface LoginFormValues {
-  email: string;
-  password: string;
-}
-
 function LoginPage() {
   const navigate = useNavigate();
   const { user, isLoading: sessionLoading } = useSession();

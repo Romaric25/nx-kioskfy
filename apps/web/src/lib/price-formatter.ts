@@ -18,7 +18,7 @@ export const priceFormatter = (
  */
 export const getCurrencySymbol = (
   currency: string,
-  locale: string = "fr-FR",
+  locale = "fr-FR",
 ): string => {
   try {
     return (

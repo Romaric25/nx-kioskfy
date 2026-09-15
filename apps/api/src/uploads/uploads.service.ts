@@ -49,7 +49,7 @@ export class UploadsService {
 
   async delete(id: number) {
     const upload = await this.getById(id);
-    try { await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: upload.thumbnailS3Key })); } catch {}
+    try { await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: upload.thumbnailS3Key })); } catch { /* Le fichier peut déjà être absent de R2 */ }
     await this.db.delete(uploads).where(eq(uploads.id, id));
   }
 

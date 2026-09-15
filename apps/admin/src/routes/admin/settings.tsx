@@ -26,10 +26,6 @@ import {
 
 export const Route = createFileRoute("/admin/settings")({ component: SettingsPage });
 
-interface SettingsFormValues {
-  values: Record<string, unknown>;
-}
-
 function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, SiteSetting>>({});
   const [loading, setLoading] = useState(true);
@@ -66,7 +62,6 @@ function SettingsPage() {
       })
       .catch(() => setFeedback({ type: "error", message: "Impossible de charger les paramètres" }))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSeed = async () => {

@@ -100,8 +100,8 @@ export const auth = betterAuth({
       hash: hashPassword,
       verify: verifyPassword,
     },
-    sendResetPassword: async ({ user, url }) => {
-   
+    sendResetPassword: async () => {
+      // Les emails de réinitialisation sont envoyés manuellement via /api/users/password.
     },
   },
   user: {
