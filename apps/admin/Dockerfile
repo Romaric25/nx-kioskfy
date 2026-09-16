@@ -19,7 +19,9 @@ COPY package.json package-lock.json ./
 COPY apps/ ./apps/
 COPY packages/ ./packages/
 
-RUN npm ci --no-audit --no-fund
+# --include=dev : Coolify/CI peuvent injecter NODE_ENV=production au build,
+# ce qui ferait sauter les devDependencies (vite, typescript...).
+RUN npm ci --include=dev --no-audit --no-fund
 
 # ── Build ─────────────────────────────────────────────────────
 FROM deps AS build

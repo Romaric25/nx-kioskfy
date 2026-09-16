@@ -28,6 +28,7 @@ async function bootstrap() {
         'https://kioskfy.com',
         'https://admin.kioskfy.com',
         'https://labo.kioskfy.com',
+        'https://api.kioskfy.com',
       ];
 
   app.enableCors({ credentials: true, origin: allowedOrigins });
@@ -59,8 +60,8 @@ async function bootstrap() {
 
   const port = configService.get<number>('port', 3000);
   await app.listen(port);
-  Logger.log(`🚀 API : http://localhost:${port}/${globalPrefix}`);
-  Logger.log(`📖 Docs : http://localhost:${port}/docs`);
+  Logger.log(`🚀 API : ${serverUrl}:${port}/${globalPrefix}`);
+  Logger.log(`📖 Docs : ${serverUrl}:${port}/docs`);
 }
 
 bootstrap();
