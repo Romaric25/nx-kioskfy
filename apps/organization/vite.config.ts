@@ -27,4 +27,9 @@ export default defineConfig({
       { find: '@', replacement: path.join(__dirname, 'src') },
     ],
   },
+  // Production : derrière le reverse-proxy (Coolify/Traefik), le Host header
+  // est un domaine wildcard (sslip.io...) — on autorise tous les hosts.
+  preview: {
+    allowedHosts: true,
+  },
 });

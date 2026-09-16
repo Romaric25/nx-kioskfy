@@ -28,4 +28,9 @@ export default defineConfig({
       { find: '@kioskfy/ui', replacement: path.join(packagesDir, 'ui/src/index.ts') },
     ],
   },
+  // Production : derrière le reverse-proxy (Coolify/Traefik), le Host header
+  // est un domaine wildcard (sslip.io...) — on autorise tous les hosts.
+  preview: {
+    allowedHosts: true,
+  },
 });
