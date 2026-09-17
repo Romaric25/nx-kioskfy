@@ -22,20 +22,8 @@ function LoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // While the session loads, render a neutral loading screen (also used during SSR).
-  if (sessionLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  // Already signed in as admin → straight to the dashboard.
-  if (user && isAdminRole(user)) {
-    return <Navigate to="/admin" replace />;
-  }
-
+  // Toujours déclaré avant les early returns : l'ordre des hooks doit être
+  // identique entre le SSR (écran de chargement) et le client (formulaire).
   const form = useForm({
     defaultValues: { email: "", password: "" },
     onSubmit: async ({ value }) => {
@@ -53,6 +41,20 @@ function LoginPage() {
       setSubmitError("Veuillez corriger les champs en rouge.");
     },
   });
+
+  // While the session loads, render a neutral loading screen (also used during SSR).
+  if (sessionLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Already signed in as admin → straight to the dashboard.
+  if (user && isAdminRole(user)) {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-10 bg-background p-4">
