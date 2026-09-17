@@ -21,7 +21,10 @@ COPY packages/ ./packages/
 
 # --include=dev : Coolify/CI peuvent injecter NODE_ENV=production au build,
 # ce qui ferait sauter les devDependencies (vite, typescript...).
-RUN npm ci --include=dev --no-audit --no-fund
+# --ignore-scripts : les binaires natifs (esbuild...) sont fournis par les
+# deps optionnelles par plateforme ; les postinstall (ex: vieux esbuild de
+# drizzle-kit) plantent en ETXTBSY sur Linux/musl.
+RUN npm ci --include=dev --ignore-scripts --no-audit --no-fund
 
 # ── Build ─────────────────────────────────────────────────────
 FROM deps AS build
