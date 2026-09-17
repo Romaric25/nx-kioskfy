@@ -1,6 +1,6 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import { ThemeProvider } from '@kioskfy/ui';
-import appCss from '../styles.css?url';
+import appCss from '../styles.css?inline';
 
 export const Route = createRootRoute({
   head: () => ({
@@ -9,7 +9,6 @@ export const Route = createRootRoute({
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'Kioskfy — Admin' },
     ],
-    links: [{ rel: 'stylesheet', href: appCss }],
     scripts: [
       {
         // Applique le thème avant le premier render (évite le flash)
@@ -24,6 +23,8 @@ function Root() {
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>
+        {/* CSS inliné : style disponible dès le premier paint, sans requête ni flash */}
+        <style dangerouslySetInnerHTML={{ __html: appCss }} />
         <HeadContent />
       </head>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
