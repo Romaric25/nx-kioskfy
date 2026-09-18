@@ -1,3 +1,4 @@
+import { Link, useLocation } from "@tanstack/react-router";
 import { type LucideIcon } from "lucide-react";
 import {
   SidebarGroup,
@@ -16,7 +17,7 @@ export function NavMain({
     icon: LucideIcon;
   }[];
 }) {
-  const path = typeof window !== "undefined" ? window.location.pathname : "";
+  const pathname = useLocation().pathname;
 
   return (
     <SidebarGroup>
@@ -27,12 +28,16 @@ export function NavMain({
               <SidebarMenuButton
                 asChild
                 tooltip={item.title}
-                isActive={path === item.url || path.startsWith(item.url + "/")}
+                isActive={
+                  pathname === item.url || pathname.startsWith(item.url + "/")
+                }
               >
-                <a href={item.url}>
+                {/* Link du routeur : navigation SPA (pas de rechargement,
+                    la session et l'état de la sidebar sont conservés). */}
+                <Link to={item.url}>
                   <item.icon />
                   <span>{item.title}</span>
-                </a>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
