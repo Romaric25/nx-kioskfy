@@ -37,8 +37,14 @@ COPY packages/ui/package.json packages/ui/package.json
 # (ex: vieux esbuild de drizzle-kit) plantent en ETXTBSY sur Linux/musl.
 # --fetch-retries : le réseau du serveur coupe parfois la connexion au
 # registry npm (ECONNRESET) — on réessaie au lieu d'échouer directement.
+# Le fallback vérifie que les binaires natifs (SWC, sharp) ont bien été
+# installés (échec silencieux possible des deps optionnelles) et
+# réinstalle tout proprement sinon.
 RUN npm ci --include=dev --ignore-scripts --no-audit --no-fund \
-    --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+      --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000 --fetch-timeout=600000 \
+    && node -e "require('@swc/core'); require('sharp')" \
+    || (npm cache clean --force && npm ci --include=dev --ignore-scripts --no-audit --no-fund \
+        --fetch-retries=10 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000 --fetch-timeout=600000)
 
 # ── Build ─────────────────────────────────────────────────────
 FROM deps AS build

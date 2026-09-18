@@ -37,8 +37,14 @@ COPY packages/ui/package.json packages/ui/package.json
 # drizzle-kit) plantent en ETXTBSY sur Linux/musl.
 # --fetch-retries : le réseau du serveur coupe parfois la connexion au
 # registry npm (ECONNRESET) — on réessaie au lieu d'échouer directement.
+# Le fallback vérifie que le binaire natif de Tailwind a bien été installé
+# (échec silencieux possible des deps optionnelles si le réseau coupe) et
+# réinstalle tout proprement sinon.
 RUN npm ci --include=dev --ignore-scripts --no-audit --no-fund \
-    --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+      --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000 --fetch-timeout=600000 \
+    && node -e "require('@tailwindcss/oxide')" \
+    || (npm cache clean --force && npm ci --include=dev --ignore-scripts --no-audit --no-fund \
+        --fetch-retries=10 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000 --fetch-timeout=600000)
 
 # ── Build ─────────────────────────────────────────────────────
 FROM deps AS build
