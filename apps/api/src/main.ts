@@ -19,19 +19,43 @@ async function bootstrap() {
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ limit: '50mb', extended: true }));
 
-  const allowedOrigins = configService.get<string>('ALLOWED_ORIGINS')
-    ? configService.get<string>('ALLOWED_ORIGINS')!.split(',').map((o) => o.trim())
-    : [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:3002',
-        'https://kioskfy.com',
-        'https://admin.kioskfy.com',
-        'https://labo.kioskfy.com',
-        'https://api.kioskfy.com',
-      ];
+  const envOrigins = (configService.get<string>('ALLOWED_ORIGINS') || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 
-  app.enableCors({ credentials: true, origin: allowedOrigins });
+  const devOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:3003',
+  ];
+
+  // CORS dynamique : autorise les domaines officiels, les domaines de test
+  // (*.sslip.io, préfixes aléatoires générés par Coolify) et la liste explicite
+  // ALLOWED_ORIGINS. Le cookie de session ne peut de toute façon être envoyé
+  // que depuis un site de la même famille que l'API.
+  app.enableCors({
+    credentials: true,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      if (!origin) {
+        // Requêtes sans Origin (SSR, curl, même origine) — autorisées.
+        return callback(null, true);
+      }
+
+      const allowed =
+        devOrigins.includes(origin) ||
+        envOrigins.includes(origin) ||
+        origin === 'https://kioskfy.com' ||
+        origin.endsWith('.kioskfy.com') ||
+        origin.endsWith('.sslip.io');
+
+      callback(null, allowed);
+    },
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
