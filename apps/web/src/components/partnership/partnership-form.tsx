@@ -29,6 +29,15 @@ import { api } from "@/lib/api";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const isProd = import.meta.env?.PROD;
+const laboUrl = import.meta.env?.VITE_LABO_URL;
+const laboHost = laboUrl ? new URL(laboUrl).hostname : "labo.kioskfy.com";
+
+/** Login page of the agency portal (external in prod, internal route in dev). */
+const loginUrl = isProd
+  ? `https://${laboHost}/organization/login`
+  : "/organization/login";
+
 interface PartnershipFormValues {
   name: string;
   lastName: string;
@@ -86,8 +95,9 @@ export function PartnershipForm() {
   });
 
   return (
-    <div className="w-full mx-auto max-w-md space-y-6 border rounded-lg p-6 shadow-lg bg-background">
+    <div className="w-full mx-auto max-w-md space-y-6 rounded-lg border bg-card p-6 shadow-lg">
       <div className="flex flex-col items-center text-center space-y-2">
+        <h2 className="text-xl font-semibold">Créer un compte partenaire</h2>
         <p className="text-muted-foreground">
           Créez votre compte pro kioskfy
         </p>
@@ -117,7 +127,9 @@ export function PartnershipForm() {
               }}
             >
               {(field) => (
-                <Field data-invalid={!!field.state.meta.errors.length || undefined}>
+                <Field
+                  data-invalid={!!field.state.meta.errors.length || undefined}
+                >
                   <FieldLabel htmlFor="part-name">Prénom *</FieldLabel>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -133,7 +145,9 @@ export function PartnershipForm() {
                     />
                   </div>
                   <FieldError
-                    errors={field.state.meta.errors.map((message) => ({ message }))}
+                    errors={field.state.meta.errors.map((message) => ({
+                      message,
+                    }))}
                   />
                 </Field>
               )}
@@ -147,7 +161,9 @@ export function PartnershipForm() {
               }}
             >
               {(field) => (
-                <Field data-invalid={!!field.state.meta.errors.length || undefined}>
+                <Field
+                  data-invalid={!!field.state.meta.errors.length || undefined}
+                >
                   <FieldLabel htmlFor="part-lastname">Nom *</FieldLabel>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -163,7 +179,9 @@ export function PartnershipForm() {
                     />
                   </div>
                   <FieldError
-                    errors={field.state.meta.errors.map((message) => ({ message }))}
+                    errors={field.state.meta.errors.map((message) => ({
+                      message,
+                    }))}
                   />
                 </Field>
               )}
@@ -181,7 +199,9 @@ export function PartnershipForm() {
             }}
           >
             {(field) => (
-              <Field data-invalid={!!field.state.meta.errors.length || undefined}>
+              <Field
+                data-invalid={!!field.state.meta.errors.length || undefined}
+              >
                 <FieldLabel htmlFor="part-email">Email *</FieldLabel>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -198,7 +218,9 @@ export function PartnershipForm() {
                   />
                 </div>
                 <FieldError
-                  errors={field.state.meta.errors.map((message) => ({ message }))}
+                  errors={field.state.meta.errors.map((message) => ({
+                    message,
+                  }))}
                 />
               </Field>
             )}
@@ -212,7 +234,9 @@ export function PartnershipForm() {
             }}
           >
             {(field) => (
-              <Field data-invalid={!!field.state.meta.errors.length || undefined}>
+              <Field
+                data-invalid={!!field.state.meta.errors.length || undefined}
+              >
                 <FieldLabel htmlFor="part-phone">Téléphone *</FieldLabel>
                 <PhoneInput
                   id="part-phone"
@@ -224,7 +248,9 @@ export function PartnershipForm() {
                   onBlur={field.handleBlur}
                 />
                 <FieldError
-                  errors={field.state.meta.errors.map((message) => ({ message }))}
+                  errors={field.state.meta.errors.map((message) => ({
+                    message,
+                  }))}
                 />
               </Field>
             )}
@@ -240,7 +266,9 @@ export function PartnershipForm() {
             }}
           >
             {(field) => (
-              <Field data-invalid={!!field.state.meta.errors.length || undefined}>
+              <Field
+                data-invalid={!!field.state.meta.errors.length || undefined}
+              >
                 <FieldLabel htmlFor="part-password">Mot de passe *</FieldLabel>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -269,7 +297,9 @@ export function PartnershipForm() {
                   </button>
                 </div>
                 <FieldError
-                  errors={field.state.meta.errors.map((message) => ({ message }))}
+                  errors={field.state.meta.errors.map((message) => ({
+                    message,
+                  }))}
                 />
               </Field>
             )}
@@ -285,7 +315,9 @@ export function PartnershipForm() {
             }}
           >
             {(field) => (
-              <Field data-invalid={!!field.state.meta.errors.length || undefined}>
+              <Field
+                data-invalid={!!field.state.meta.errors.length || undefined}
+              >
                 <FieldLabel htmlFor="part-confirm">
                   Confirmer le mot de passe *
                 </FieldLabel>
@@ -302,9 +334,23 @@ export function PartnershipForm() {
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    aria-label="Afficher la confirmation"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
                 <FieldError
-                  errors={field.state.meta.errors.map((message) => ({ message }))}
+                  errors={field.state.meta.errors.map((message) => ({
+                    message,
+                  }))}
                 />
               </Field>
             )}
@@ -320,7 +366,9 @@ export function PartnershipForm() {
             }}
           >
             {(field) => (
-              <Field data-invalid={!!field.state.meta.errors.length || undefined}>
+              <Field
+                data-invalid={!!field.state.meta.errors.length || undefined}
+              >
                 <div className="flex items-start gap-3">
                   <Checkbox
                     id="part-terms"
@@ -334,11 +382,21 @@ export function PartnershipForm() {
                     htmlFor="part-terms"
                     className="text-sm text-muted-foreground leading-relaxed cursor-pointer"
                   >
-                    J&apos;accepte les conditions d&apos;utilisation et de vente
+                    J&apos;accepte les{" "}
+                    <Link
+                      to="/cgc"
+                      target="_blank"
+                      className="text-primary hover:underline font-medium"
+                    >
+                      conditions générales
+                    </Link>{" "}
+                    d&apos;utilisation et de vente
                   </label>
                 </div>
                 <FieldError
-                  errors={field.state.meta.errors.map((message) => ({ message }))}
+                  errors={field.state.meta.errors.map((message) => ({
+                    message,
+                  }))}
                 />
               </Field>
             )}
@@ -368,12 +426,18 @@ export function PartnershipForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         Vous avez déjà un compte ?{" "}
-        <Link
-          to="/organization/login"
-          className="text-primary hover:underline font-medium"
-        >
-          Se connecter
-        </Link>
+        {isProd ? (
+          <a href={loginUrl} className="text-primary hover:underline font-medium">
+            Se connecter
+          </a>
+        ) : (
+          <Link
+            to="/organization/login"
+            className="text-primary hover:underline font-medium"
+          >
+            Se connecter
+          </Link>
+        )}
       </p>
 
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
@@ -395,7 +459,11 @@ export function PartnershipForm() {
           <Button
             onClick={() => {
               setShowSuccessDialog(false);
-              navigate({ to: "/organization/login" });
+              if (isProd) {
+                window.location.href = loginUrl;
+              } else {
+                navigate({ to: "/organization/login" });
+              }
             }}
             className="w-full"
           >

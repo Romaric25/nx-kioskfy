@@ -5,6 +5,7 @@ import { initAuth, useSignUp, useSignIn } from "@kioskfy/auth-client";
 import {
   Button,
   Input,
+  PhoneInput,
   Checkbox,
   Field,
   FieldGroup,
@@ -17,7 +18,6 @@ import {
   Mail,
   Lock,
   User,
-  Phone,
   Loader2,
 } from "lucide-react";
 import { API_ORIGIN } from "@/lib/api";
@@ -221,20 +221,15 @@ export function RegisterForm() {
             {(field) => (
               <Field>
                 <FieldLabel htmlFor="register-phone">Téléphone</FieldLabel>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="register-phone"
-                    type="tel"
-                    placeholder="+33 6 12 34 56 78"
-                    className="pl-10"
-                    autoComplete="tel"
-                    disabled={isSigningUp}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                  />
-                </div>
+                <PhoneInput
+                  id="register-phone"
+                  placeholder="+33 6 12 34 56 78"
+                  autoComplete="tel"
+                  disabled={isSigningUp}
+                  value={field.state.value}
+                  onChange={(value) => field.handleChange(value)}
+                  onBlur={field.handleBlur}
+                />
               </Field>
             )}
           </form.Field>

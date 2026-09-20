@@ -176,12 +176,14 @@ export function Partnership() {
                 Commencer maintenant
                 <ArrowRight data-icon="inline-start" className="h-5 w-5" />
               </SubscriptionCta>
-              <SubscriptionCta
+              <Button
+                asChild
+                size="lg"
                 variant="outline"
                 className="h-14 px-8 text-lg rounded-full border-2 hover:bg-secondary/50"
               >
-                Découvrir les avantages
-              </SubscriptionCta>
+                <a href="#avantages">Découvrir les avantages</a>
+              </Button>
             </div>
           </div>
         </div>
@@ -199,8 +201,8 @@ export function Partnership() {
         </div>
       </section>
 
-      {/* Value Proposition Grid */}
-      <section className="py-24 relative">
+      {/* Value Proposition Grid — avantages */}
+      <section id="avantages" className="py-24 relative scroll-mt-24">
         <div className="container mx-auto px-4">
           <SectionHeader
             badge="Innovation"
