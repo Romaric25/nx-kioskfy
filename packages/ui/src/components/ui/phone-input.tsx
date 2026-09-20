@@ -18,11 +18,13 @@ export interface PhoneInputProps {
   defaultCountry?: Country;
   international?: boolean;
   withCountryCallingCode?: boolean;
+  "aria-invalid"?: boolean;
   className?: string;
 }
 
 /**
- * Champ téléphone avec sélecteur de pays, stylé pour le design system.
+ * Champ téléphone avec sélecteur de pays, stylé comme le composant `Input`
+ * du design system (même hauteur, bordure, focus ring, état invalide...).
  * Basé sur `react-phone-number-input` (libphonenumber-js).
  */
 export function PhoneInput({
@@ -37,6 +39,7 @@ export function PhoneInput({
   defaultCountry = "FR",
   international = true,
   withCountryCallingCode = true,
+  "aria-invalid": ariaInvalid,
   className,
 }: PhoneInputProps) {
   return (
@@ -53,13 +56,25 @@ export function PhoneInput({
       international={international}
       withCountryCallingCode={withCountryCallingCode}
       countryCallingCodeEditable={false}
+      aria-invalid={ariaInvalid}
+      // `aria-invalid` est aussi posé sur le conteneur racine pour que les
+      // variantes `aria-invalid:*` (bordure/ring destructives) s'appliquent.
+      containerComponentProps={{ "aria-invalid": ariaInvalid }}
       className={cn(
-        "flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors",
-        "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        "has-[:focus]:ring-2 has-[:focus]:ring-ring has-[:focus]:ring-offset-2",
+        // Miroir des classes du composant `Input` du design system.
+        "dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] md:text-sm",
+        "focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]",
+        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        "has-[:disabled]:pointer-events-none has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50",
         className,
       )}
+      numberInputProps={{
+        className: cn(
+          // L'input interne doit se fondre dans le conteneur bordé.
+          "h-full flex-1 min-w-0 border-0 bg-transparent p-0 outline-none",
+          "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground",
+        ),
+      }}
     />
   );
 }
