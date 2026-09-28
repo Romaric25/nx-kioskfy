@@ -153,6 +153,9 @@ export type { ChartConfig } from "./components/ui/chart";
 export { cn } from "./lib/utils";
 export { useIsMobile } from "./hooks/use-mobile";
 
+export { NotFoundPage } from "./components/not-found";
+export type { NotFoundPageProps } from "./components/not-found";
+
 export { ThemeProvider, useTheme } from "./theme-provider";
 export type { Theme } from "./theme-provider";
 export { ThemeToggle } from "./theme-toggle";

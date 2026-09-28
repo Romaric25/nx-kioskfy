@@ -1,4 +1,5 @@
 import { createRouter as createTanStackRouter } from '@tanstack/react-router';
+import { Button, NotFoundPage } from '@kioskfy/ui';
 import { routeTree } from './routeTree.gen';
 
 export function getRouter() {
@@ -6,10 +7,11 @@ export function getRouter() {
     routeTree,
     defaultPreload: 'intent',
     defaultNotFoundComponent: () => (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <h2>404 - Page not found</h2>
-        <a href="/">Go home</a>
-      </div>
+      <NotFoundPage>
+        <Button variant="outline" size="lg" asChild>
+          <a href="/support">Contacter le support</a>
+        </Button>
+      </NotFoundPage>
     ),
   });
 
