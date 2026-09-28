@@ -9,6 +9,7 @@ export const Route = createRootRoute({
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'Kioskfy — Admin' },
     ],
+    links: [{ rel: 'icon', type: 'image/png', href: '/favicon.png' }],
     scripts: [
       {
         // Applique le thème avant le premier render (évite le flash)

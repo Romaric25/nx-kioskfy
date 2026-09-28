@@ -29,6 +29,9 @@ export const Route = createRootRoute({
         title: 'kioskfy - Votre kiosque numérique de presse africaine',
       },
     ],
+    links: [
+      { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+    ],
   }),
   component: RootComponent,
 });

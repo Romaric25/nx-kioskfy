@@ -27,6 +27,7 @@ export const Route = createRootRoute({
         title: "Espace Partenaire | kioskfy",
       },
     ],
+    links: [{ rel: "icon", type: "image/png", href: "/favicon.png" }],
   }),
   component: RootComponent,
 });
