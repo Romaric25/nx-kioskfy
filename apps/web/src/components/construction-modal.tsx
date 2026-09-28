@@ -9,8 +9,6 @@ import {
 } from "@kioskfy/ui";
 import { Construction, Sparkles, CheckCircle2 } from "lucide-react";
 
-const DISMISSED_KEY = "kioskfy-construction-modal-dismissed";
-
 const UPCOMING_FEATURES = [
   "Un catalogue complet de la presse africaine",
   "Compte lecteur avec favoris et historique",
@@ -19,31 +17,18 @@ const UPCOMING_FEATURES = [
 
 /**
  * Modal affiché à l'ouverture du site pour avertir qu'il est en construction.
- * N'apparaît qu'une fois par session (sessionStorage).
+ * S'ouvre à chaque visite (rechargement de page).
  */
 export function ConstructionModal() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     // Ne rien afficher côté serveur (SSR) — le modal s'ouvre après l'hydratation.
-    if (typeof window === "undefined") return;
-    try {
-      if (!window.sessionStorage.getItem(DISMISSED_KEY)) {
-        setOpen(true);
-      }
-    } catch {
-      // sessionStorage indisponible (navigation privée) : on affiche quand même.
-      setOpen(true);
-    }
+    setOpen(true);
   }, []);
 
   const dismiss = () => {
     setOpen(false);
-    try {
-      window.sessionStorage.setItem(DISMISSED_KEY, "1");
-    } catch {
-      // sessionStorage indisponible : on ignore, le modal se réaffichera.
-    }
   };
 
   return (
