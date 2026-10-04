@@ -16,7 +16,7 @@ import {
   Input,
   Switch,
 } from "@kioskfy/ui";
-import { FileText, FileUp, Loader2, Upload, X } from "lucide-react";
+import { FileText, FileUp, ImagePlus, Loader2, Upload, X } from "lucide-react";
 import { api, API_ORIGIN } from "@/lib/api";
 import { useActiveOrganization } from "@/hooks/use-organizations.hook";
 
@@ -25,6 +25,7 @@ interface PublishFormValues {
   publishDate: string;
   price: number;
   autoPublish: boolean;
+  coverImageFile: File | null;
   pdfFile: File | null;
 }
 
@@ -36,6 +37,8 @@ export function PublishForm() {
     useActiveOrganization();
   const [formError, setFormError] = useState<string | null>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
   /** Envoie un fichier via l'upload présigné R2 et retourne son upload ID. */
   const uploadFile = async (file: File, folder: string) => {
@@ -82,6 +85,7 @@ export function PublishForm() {
       publishDate: new Date().toISOString().slice(0, 10),
       price: 0,
       autoPublish: false,
+      coverImageFile: null,
       pdfFile: null,
     } as PublishFormValues,
     onSubmit: async ({ value }) => {
@@ -95,6 +99,9 @@ export function PublishForm() {
         organizationId: organization.id,
         country: "",
         autoPublish: value.autoPublish,
+        coverImageUploadId: value.coverImageFile
+          ? (await uploadFile(value.coverImageFile, "newspapers/covers")).uploadId
+          : undefined,
         pdfUploadId: value.pdfFile
           ? (await uploadFile(value.pdfFile, "newspapers")).uploadId
           : undefined,
@@ -210,6 +217,82 @@ export function PublishForm() {
                   />
                   <FieldError
                     errors={field.state.meta.errors.map((message) => ({ message }))}
+                  />
+                </Field>
+              )}
+            </form.Field>
+
+            <form.Field name="coverImageFile">
+              {(field) => (
+                <Field>
+                  <FieldLabel>Image de couverture</FieldLabel>
+                  {coverPreview ? (
+                    <div className="flex items-center gap-3 rounded-md border p-3">
+                      <div className="h-16 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={coverPreview}
+                          alt="Aperçu de la couverture"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {field.state.value?.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {(field.state.value?.size ?? 0) / (1024 * 1024) > 0
+                            ? `${((field.state.value?.size ?? 0) / (1024 * 1024)).toFixed(2)} Mo`
+                            : ""}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Retirer la couverture"
+                        disabled={createNewspaper.isPending}
+                        onClick={() => {
+                          field.handleChange(null);
+                          setCoverPreview(null);
+                          if (coverInputRef.current) coverInputRef.current.value = "";
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => coverInputRef.current?.click()}
+                      disabled={createNewspaper.isPending}
+                      className="flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-input bg-muted/30 px-4 py-8 text-center transition-colors hover:bg-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <ImagePlus className="h-8 w-8 text-muted-foreground" />
+                      <span className="text-sm font-medium">
+                        Cliquez pour sélectionner une couverture
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        PNG ou JPG, 15 Mo maximum
+                      </span>
+                    </button>
+                  )}
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    aria-label="Image de couverture de l'édition"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      if (file && file.size > 15 * 1024 * 1024) {
+                        setFormError("L'image ne doit pas dépasser 15 Mo");
+                        e.target.value = "";
+                        return;
+                      }
+                      field.handleChange(file);
+                      setCoverPreview(file ? URL.createObjectURL(file) : null);
+                    }}
                   />
                 </Field>
               )}
