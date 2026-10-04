@@ -156,16 +156,16 @@ export interface PublicAgency {
 
 export interface CreateOrganizationInput {
   name: string;
-  slug: string;
+  slug?: string;
   email: string;
   phone: string;
   country: string;
   address: string;
   description: string;
   price?: number;
-  metadata?: string;
-  logoFile?: File;
+  logo?: string | null;
   logoUploadId?: number;
+  metadata?: string | null;
 }
 
 export interface UpdateOrganizationInput {

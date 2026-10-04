@@ -81,7 +81,7 @@ export class OrganizationsResource {
   async create(
     data: CreateOrganizationInput,
     opts?: FetchOptions,
-  ): Promise<{ id: string }> {
+  ): Promise<OrganizationItem> {
     return this.fetch("/organizations", buildInit("POST", opts, data));
   }
 

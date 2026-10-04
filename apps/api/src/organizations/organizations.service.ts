@@ -1,10 +1,18 @@
-import { Injectable, Inject, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+} from "@nestjs/common";
 import { DRIZZLE } from "../db";
 import { organizationBalances, revenueShares } from "../db/app-schema";
-import { members, organizations } from "../db/auth-schema";
+import { members, organizations, users } from "../db/auth-schema";
 import { eq, inArray, sql } from "drizzle-orm";
+import { randomUUID } from "crypto";
 import type { Database } from "../db";
 import type { OrganizationItem } from "@kioskfy/types";
+import type { CreateOrganizationDto } from "./dto/create-organization.dto";
 
 export interface OrganizationBalanceResponse {
   id: number;
@@ -57,6 +65,87 @@ export class OrganizationsService {
     });
 
     return rows.map((org) => this.mapOrganization(org));
+  }
+
+  /**
+   * Create a press agency for the current user (mirrors Better Auth's
+   * `allowUserToCreateOrganization` rule: active `agency` users only) and
+   * attach the creator as owner member.
+   */
+  async create(userId: string, dto: CreateOrganizationDto): Promise<OrganizationItem> {
+    const user = await this.db.query.users.findFirst({ where: eq(users.id, userId) });
+    if (!user) throw new NotFoundException("Utilisateur non trouvé");
+    if (user.typeUser !== "agency") {
+      throw new ForbiddenException("Seuls les comptes partenaires peuvent créer une organisation");
+    }
+    if (!user.isActive) {
+      throw new ForbiddenException("Votre compte n'est pas encore actif");
+    }
+
+    const id = randomUUID();
+    const slug = await this.generateUniqueSlug(dto.slug || dto.name);
+
+    try {
+      await this.db.transaction(async (tx) => {
+        await tx.insert(organizations).values({
+          id,
+          name: dto.name,
+          slug,
+          logo: dto.logo ?? null,
+          logoUploadId: dto.logoUploadId ?? null,
+          email: dto.email,
+          phone: dto.phone,
+          country: dto.country,
+          address: dto.address,
+          description: dto.description,
+          price: dto.price ?? null,
+          metadata: dto.metadata ?? null,
+          suspended: false,
+        });
+        await tx.insert(members).values({
+          id: randomUUID(),
+          organizationId: id,
+          userId,
+          role: "owner",
+          createdAt: new Date(),
+        });
+      });
+    } catch {
+      // Slug, email ou téléphone déjà utilisés (contraintes d'unicité).
+      throw new ConflictException(
+        "Une organisation avec ce nom, cet email ou ce téléphone existe déjà",
+      );
+    }
+
+    const org = await this.db.query.organizations.findFirst({
+      where: eq(organizations.id, id),
+    });
+    if (!org) throw new NotFoundException("Impossible de créer l'organisation");
+
+    return this.mapOrganization(org);
+  }
+
+  /** Slugify the organization name and ensure uniqueness. */
+  private async generateUniqueSlug(name: string): Promise<string> {
+    const base =
+      name
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "")
+        .substring(0, 50) || "organisation";
+
+    let slug = base;
+    let suffix = 1;
+    while (
+      await this.db.query.organizations.findFirst({
+        where: eq(organizations.slug, slug),
+      })
+    ) {
+      slug = `${base}-${suffix++}`;
+    }
+    return slug;
   }
 
   private mapOrganization(org: typeof organizations.$inferSelect): OrganizationItem {

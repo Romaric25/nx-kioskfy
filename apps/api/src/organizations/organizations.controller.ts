@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Param, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Param, Body, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiParam } from "@nestjs/swagger";
 import { Session, AuthGuard, Public, type UserSession } from "@thallesp/nestjs-better-auth";
 import type { auth } from "../auth";
 import { OrganizationsService } from "./organizations.service";
+import { CreateOrganizationDto } from "./dto/create-organization.dto";
 
 type AuthSession = UserSession<typeof auth>;
 
@@ -30,6 +31,12 @@ export class OrganizationsController {
   @ApiOperation({ summary: "Mes organisations (agences de presse)" })
   getMyOrganizations(@Session() session: AuthSession) {
     return this.organizationsService.getMyOrganizations(session.user.id);
+  }
+
+  @Post()
+  @ApiOperation({ summary: "Créer une organisation (agence de presse)" })
+  create(@Session() session: AuthSession, @Body() dto: CreateOrganizationDto) {
+    return this.organizationsService.create(session.user.id, dto);
   }
 
   @Get(":organizationId/balances")

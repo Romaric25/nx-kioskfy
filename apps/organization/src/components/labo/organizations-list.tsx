@@ -13,6 +13,7 @@ import {
   Skeleton,
 } from "@kioskfy/ui";
 import { useOrganizations } from "@/hooks/use-organizations.hook";
+import { OrganizationForm } from "./organization-form";
 import { selectedOrganizationStore, useSelectedOrganization } from "@/lib/selected-organization-store";
 import type { OrganizationItem } from "@kioskfy/types";
 
@@ -46,6 +47,7 @@ export function OrganizationsList() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Mes agences</h2>
+        <OrganizationForm />
       </div>
 
       {organizations.length === 0 ? (
@@ -54,8 +56,10 @@ export function OrganizationsList() {
             <Building2 className="h-10 w-10 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold">Aucune agence</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Vous n&apos;avez pas encore d&apos;agence associée à votre compte.
+              Vous n&apos;avez pas encore créé d&apos;agence. Créez-en une pour
+              commencer.
             </p>
+            <OrganizationForm />
           </CardContent>
         </Card>
       ) : (
