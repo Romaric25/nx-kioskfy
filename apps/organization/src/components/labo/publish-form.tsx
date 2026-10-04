@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,8 +16,8 @@ import {
   Input,
   Switch,
 } from "@kioskfy/ui";
-import { FileText, Loader2, Upload } from "lucide-react";
-import { api } from "@/lib/api";
+import { FileText, FileUp, Loader2, Upload, X } from "lucide-react";
+import { api, API_ORIGIN } from "@/lib/api";
 import { useActiveOrganization } from "@/hooks/use-organizations.hook";
 
 interface PublishFormValues {
@@ -25,6 +25,7 @@ interface PublishFormValues {
   publishDate: string;
   price: number;
   autoPublish: boolean;
+  pdfFile: File | null;
 }
 
 /** Publish a new edition for the selected agency. */
@@ -34,6 +35,30 @@ export function PublishForm() {
   const { organization, isLoading: isLoadingOrganization } =
     useActiveOrganization();
   const [formError, setFormError] = useState<string | null>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  /** Envoie un fichier via l'upload présigné R2 et retourne son upload ID. */
+  const uploadFile = async (file: File, folder: string) => {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+    const { url, key } = await api.uploads.getPresignedUploadUrl(
+      safeName,
+      file.type || "application/octet-stream",
+      folder,
+    );
+    const putResponse = await fetch(url, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+    });
+    if (!putResponse.ok) {
+      throw new Error("Échec de l'envoi du fichier");
+    }
+    const upload = await api.uploads.confirmUpload({
+      s3Key: key,
+      filename: safeName,
+    });
+    return { uploadId: upload.id, streamUrl: `${API_ORIGIN}/api/uploads/stream/${encodeURIComponent(key)}` };
+  };
 
   const createNewspaper = useMutation({
     mutationFn: (payload: Parameters<typeof api.newspapers.create>[0]) =>
@@ -57,6 +82,7 @@ export function PublishForm() {
       publishDate: new Date().toISOString().slice(0, 10),
       price: 0,
       autoPublish: false,
+      pdfFile: null,
     } as PublishFormValues,
     onSubmit: async ({ value }) => {
       if (!organization) return;
@@ -69,6 +95,9 @@ export function PublishForm() {
         organizationId: organization.id,
         country: "",
         autoPublish: value.autoPublish,
+        pdfUploadId: value.pdfFile
+          ? (await uploadFile(value.pdfFile, "newspapers")).uploadId
+          : undefined,
       });
     },
   });
@@ -178,6 +207,82 @@ export function PublishForm() {
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
+                  />
+                  <FieldError
+                    errors={field.state.meta.errors.map((message) => ({ message }))}
+                  />
+                </Field>
+              )}
+            </form.Field>
+
+            <form.Field
+              name="pdfFile"
+              validators={{
+                onChange: ({ value }) =>
+                  !value ? "Le fichier PDF est requis" : undefined,
+              }}
+            >
+              {(field) => (
+                <Field data-invalid={!!field.state.meta.errors.length || undefined}>
+                  <FieldLabel>Fichier PDF *</FieldLabel>
+                  {field.state.value ? (
+                    <div className="flex items-center gap-3 rounded-md border p-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {field.state.value.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {(field.state.value.size / (1024 * 1024)).toFixed(2)} Mo
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Retirer le PDF"
+                        disabled={createNewspaper.isPending}
+                        onClick={() => {
+                          field.handleChange(null);
+                          if (pdfInputRef.current) pdfInputRef.current.value = "";
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => pdfInputRef.current?.click()}
+                      disabled={createNewspaper.isPending}
+                      className="flex w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-input bg-muted/30 px-4 py-8 text-center transition-colors hover:bg-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <FileUp className="h-8 w-8 text-muted-foreground" />
+                      <span className="text-sm font-medium">
+                        Cliquez pour sélectionner le PDF
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        PDF, 250 Mo maximum
+                      </span>
+                    </button>
+                  )}
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="sr-only"
+                    aria-label="Fichier PDF de l'édition"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      if (file && file.size > 250 * 1024 * 1024) {
+                        setFormError("Le PDF ne doit pas dépasser 250 Mo");
+                        e.target.value = "";
+                        return;
+                      }
+                      field.handleChange(file);
+                    }}
                   />
                   <FieldError
                     errors={field.state.meta.errors.map((message) => ({ message }))}
