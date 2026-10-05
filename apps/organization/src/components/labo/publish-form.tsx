@@ -229,7 +229,6 @@ export function PublishForm() {
                   {coverPreview ? (
                     <div className="flex items-center gap-3 rounded-md border p-3">
                       <div className="h-16 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={coverPreview}
                           alt="Aperçu de la couverture"

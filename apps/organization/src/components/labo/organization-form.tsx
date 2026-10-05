@@ -199,13 +199,12 @@ export function OrganizationForm() {
               </form.Field>
 
               <form.Field name="logoFile">
-                {(field) => (
+                {() => (
                   <Field>
                     <FieldLabel>Logo de l'agence</FieldLabel>
                     <div className="flex items-center gap-3">
                       {logoPreview ? (
                         <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-muted">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={logoPreview}
                             alt="Aperçu du logo"
