@@ -34,11 +34,23 @@ export function ConstructionModal() {
   return (
     <Dialog
       open={open}
+      modal={false}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) dismiss();
       }}
     >
-      <DialogContent className="overflow-hidden p-0 text-center sm:max-w-md">
+      {/* Overlay custom : en mode non-modal, Radix ne masque plus le reste de
+          la page avec `aria-hidden` (le `hideOthers` de Radix entre en conflit
+          avec le tracking d'attributs de React 19.2 et provoque une erreur
+          d'hydratation sur le header/main). */}
+      {open && (
+        <div
+          aria-hidden
+          onClick={dismiss}
+          className="fixed inset-0 z-[60] bg-black/80"
+        />
+      )}
+      <DialogContent className="z-[70] overflow-hidden p-0 text-center sm:max-w-md">
         {/* Bandeau d'en-tête dégradé */}
         <div className="relative bg-gradient-to-br from-primary to-emerald-900 px-6 pb-8 pt-10">
           <div
