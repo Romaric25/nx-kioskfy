@@ -78,6 +78,8 @@ export function PispiCheckout({
         return {
           txId: demande.txId || txId,
           statut: demande.statut,
+          payeurNom: demande.payeurNom,
+          payeurPays: demande.payeurPays,
         };
       },
       getPaymentStatus: (txId) => getPispiPaymentStatus(txId),

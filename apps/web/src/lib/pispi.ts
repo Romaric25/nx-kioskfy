@@ -16,11 +16,13 @@ export const PISPI_API_URL =
 /** Alias du compte business du SaaS qui reçoit les paiements. */
 export const PISPI_BUSINESS_ALIAS =
   import.meta.env?.VITE_PISPI_BUSINESS_ALIAS ||
-  "17ef2121-f638-4191-95ea-7167990acdc6";
+  "8350050d-6f94-481c-8caa-2b59b1a3664e";
 
 export interface PispiDemandeResponse {
   txId: string;
   statut?: string;
+  payeurNom?: string;
+  payeurPays?: string;
   [key: string]: unknown;
 }
 
