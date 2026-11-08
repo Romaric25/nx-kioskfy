@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { DRIZZLE } from "../db";
 import { orders, revenueShares, newspapers } from "../db/app-schema";
 import { users } from "../db/auth-schema";
-import { eq, and, count, sum, desc, sql } from "drizzle-orm";
+import { eq, and, count, sum, desc, sql, inArray } from "drizzle-orm";
 import type { Database } from "../db";
 
 @Injectable()
@@ -38,9 +38,8 @@ export class OrdersService {
   }
 
   async updatePaymentIdBatch(orderIds: string[], paymentId: string) {
-    await this.db.update(orders).set({ paymentId }).where(
-      sql`${orders.id} IN (${orderIds.map((id) => sql`${id}`)})` as any,
-    );
+    if (!orderIds.length) return;
+    await this.db.update(orders).set({ paymentId }).where(inArray(orders.id, orderIds));
   }
 
   async getByUserId(userId: string) {
@@ -94,9 +93,11 @@ export class OrdersService {
       .groupBy(orders.userId)
       .orderBy(desc(count(orders.id)));
 
-    const customerIds = rows.map((r) => r.userId);
+    const customerIds = rows
+      .map((r) => r.userId)
+      .filter((id): id is string => typeof id === "string");
     const userRows = customerIds.length
-      ? await this.db.select().from(users).where(sql`${users.id} IN (${customerIds.map((id) => sql`${id}`)})`)
+      ? await this.db.select().from(users).where(inArray(users.id, customerIds))
       : [];
 
     const userMap = new Map(userRows.map((u) => [u.id, u]));
