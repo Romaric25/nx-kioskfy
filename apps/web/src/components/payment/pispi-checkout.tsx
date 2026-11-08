@@ -61,7 +61,10 @@ export function PispiCheckout({
         const { orderIds } = await createOrdersRef.current();
 
         // 2. txId stable : il sert de paymentId côté kioskfy.
-        const txId = `RTP-${Date.now()}-${orderIds.join("-")}`.slice(0, 200);
+        // Contrainte du schéma PI-SPI : 35 caractères maximum.
+        const txId = `RTP-${Date.now().toString(36)}${Math.random()
+          .toString(36)
+          .slice(2, 8)}`.slice(0, 35);
         await linkOrdersRef.current(orderIds, txId);
 
         // 3. Envoyer la demande de paiement à l'API SaaS PI-SPI.
