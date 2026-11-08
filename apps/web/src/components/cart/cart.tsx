@@ -5,8 +5,6 @@ import { useMutation } from "@tanstack/react-query";
 import {
   Trash2,
   ShoppingCart,
-  ArrowRight,
-  Loader2,
   AlertCircle,
 } from "lucide-react";
 import {
@@ -21,7 +19,7 @@ import {
   Separator,
 } from "@kioskfy/ui";
 import { useSession, initAuth } from "@kioskfy/auth-client";
-import type { BatchOrderInput, InitializePaymentInput } from "@kioskfy/types";
+import type { BatchOrderInput } from "@kioskfy/types";
 import type { PispiCheckoutCloseResult } from "@pi-spi/checkout";
 import { api, API_ORIGIN } from "@/lib/api";
 import { cartStore, useCartStore } from "@/lib/cart-store";
@@ -37,15 +35,11 @@ if (typeof window !== "undefined") {
 export function Cart() {
   const navigate = useNavigate();
   const items = useCartStore();
-  const { user, isAuthenticated } = useSession();
+  const { isAuthenticated } = useSession();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const createBatch = useMutation({
     mutationFn: (data: BatchOrderInput) => api.orders.createBatch(data),
-  });
-
-  const initializePayment = useMutation({
-    mutationFn: (data: InitializePaymentInput) => api.payments.initialize(data),
   });
 
   const updatePaymentId = useMutation({
@@ -57,86 +51,6 @@ export function Cart() {
       paymentId: string;
     }) => api.orders.updatePaymentId(orderIds, paymentId),
   });
-
-  const handleInitializePayment = async () => {
-    setErrorMessage(null);
-
-    if (!isAuthenticated || !user) {
-      navigate({
-        to: "/login",
-        search: { redirect: "/cart" } as never,
-      });
-      return;
-    }
-
-    if (items.length === 0) {
-      setErrorMessage("Votre panier est vide");
-      return;
-    }
-
-    try {
-      // Step 1: Create orders in database
-      const createdOrders = await createBatch.mutateAsync({
-        orders: items.map((item) => ({
-          newspaperId: item.id,
-          price: Number(item.price),
-        })),
-      });
-
-      if (!createdOrders?.length) {
-        throw new Error("Erreur lors de la création des commandes");
-      }
-
-      const orderIds = createdOrders.map((order) => order.id);
-
-      // Step 2: Initialize payment with Moneroo
-      const paymentResponse = await initializePayment.mutateAsync({
-        amount: cartStore.total(),
-        currency: "USD",
-        description: `Achat de ${items.length} journal(aux) sur Kioskfy`,
-        customer: {
-          email: user.email || "client@kioskfy.com",
-          first_name: user.name || "Client",
-          last_name: user.name || "Kioskfy",
-        },
-        return_url: `${window.location.origin}/payment/success`,
-        metadata: {
-          order_ids: JSON.stringify(orderIds),
-          customer_id: user.id,
-          items_count: items.length,
-        },
-        methods: [],
-      });
-
-      const paymentId = paymentResponse?.payment_id;
-      const checkoutUrl = paymentResponse?.checkout_url;
-
-      if (!paymentId) {
-        throw new Error("Erreur : ID de paiement non reçu");
-      }
-
-      // Step 3: Update orders with payment ID
-      await updatePaymentId.mutateAsync({ orderIds, paymentId });
-
-      // Step 4: Redirect to payment page
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
-      } else {
-        throw new Error("URL de paiement non disponible");
-      }
-    } catch (err) {
-      setErrorMessage(
-        err instanceof Error && err.message
-          ? err.message
-          : "Une erreur est survenue",
-      );
-    }
-  };
-
-  const isProcessing =
-    createBatch.isPending ||
-    initializePayment.isPending ||
-    updatePaymentId.isPending;
 
   /** Crée les commandes pour le parcours PI-SPI. */
   const createOrdersForPispi = async () => {
@@ -307,30 +221,9 @@ export function Cart() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
-              <Button
-                onClick={handleInitializePayment}
-                className="w-full"
-                size="lg"
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 data-icon="inline-start" className="animate-spin" />
-                    Traitement en cours...
-                  </>
-                ) : (
-                  <>
-                    Procéder au paiement
-                    <ArrowRight data-icon="inline-start" />
-                  </>
-                )}
-              </Button>
-
-              <Separator />
-
               <div className="flex w-full flex-col gap-2">
                 <p className="text-center text-xs text-muted-foreground">
-                  Ou payez avec PI-SPI
+                  Payez en toute sécurité avec PI-SPI
                 </p>
                 {isAuthenticated ? (
                   <PispiCheckout
