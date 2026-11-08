@@ -22,10 +22,12 @@ import {
 } from "@kioskfy/ui";
 import { useSession, initAuth } from "@kioskfy/auth-client";
 import type { BatchOrderInput, InitializePaymentInput } from "@kioskfy/types";
+import type { PispiCheckoutCloseResult } from "@pi-spi/checkout";
 import { api, API_ORIGIN } from "@/lib/api";
 import { cartStore, useCartStore } from "@/lib/cart-store";
 import { priceFormatter } from "@/lib/price-formatter";
 import { FrequencyContent } from "@/components/frequency-content";
+import { PispiCheckout } from "@/components/payment/pispi-checkout";
 
 // Initialize the auth client once (idempotent — the session promise is cached).
 if (typeof window !== "undefined") {
@@ -135,6 +137,39 @@ export function Cart() {
     createBatch.isPending ||
     initializePayment.isPending ||
     updatePaymentId.isPending;
+
+  /** Crée les commandes pour le parcours PI-SPI. */
+  const createOrdersForPispi = async () => {
+    if (items.length === 0) {
+      throw new Error("Votre panier est vide");
+    }
+    const createdOrders = await createBatch.mutateAsync({
+      orders: items.map((item) => ({
+        newspaperId: item.id,
+        price: Number(item.price),
+      })),
+    });
+    if (!createdOrders?.length) {
+      throw new Error("Erreur lors de la création des commandes");
+    }
+    return { orderIds: createdOrders.map((order) => order.id) };
+  };
+
+  /** Fermeture du widget PI-SPI : succès, rejet ou abandon. */
+  const handlePispiClose = (result: PispiCheckoutCloseResult) => {
+    if (result.success && result.txId) {
+      navigate({
+        to: "/payment/success",
+        search: { paymentId: result.txId } as never,
+      });
+    } else if (result.status === "rejected") {
+      setErrorMessage("Le paiement PI-SPI a été rejeté. Veuillez réessayer.");
+    } else if (result.status === "timeout") {
+      setErrorMessage(
+        "Le paiement PI-SPI a expiré. Vérifiez vos notifications avant de réessayer.",
+      );
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -271,7 +306,7 @@ export function Cart() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-3">
               <Button
                 onClick={handleInitializePayment}
                 className="w-full"
@@ -290,6 +325,38 @@ export function Cart() {
                   </>
                 )}
               </Button>
+
+              <Separator />
+
+              <div className="flex w-full flex-col gap-2">
+                <p className="text-center text-xs text-muted-foreground">
+                  Ou payez avec PI-SPI
+                </p>
+                {isAuthenticated ? (
+                  <PispiCheckout
+                    amount={Math.round(cartStore.total())}
+                    motif={`Achat de ${items.length} journal(aux) sur Kioskfy`}
+                    createOrders={createOrdersForPispi}
+                    linkOrdersToPayment={(orderIds, paymentId) =>
+                      updatePaymentId.mutateAsync({ orderIds, paymentId })
+                    }
+                    onClose={handlePispiClose}
+                  />
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      navigate({
+                        to: "/login",
+                        search: { redirect: "/cart" } as never,
+                      });
+                    }}
+                  >
+                    Se connecter pour payer avec PI-SPI
+                  </Button>
+                )}
+              </div>
             </CardFooter>
           </Card>
         </div>

@@ -2,7 +2,11 @@ import { Controller, Post, Get, Body, Param } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { Public } from "@thallesp/nestjs-better-auth";
 import { PaymentsService } from "./payments.service";
-import { InitializePaymentDto, PaymentSuccessDto } from "./dto/payment.dto";
+import {
+  InitializePaymentDto,
+  PaymentSuccessDto,
+  PispiConfirmDto,
+} from "./dto/payment.dto";
 
 @ApiTags("Payments")
 @Controller("payments")
@@ -28,5 +32,15 @@ export class PaymentsController {
   @ApiOperation({ summary: "Marquer un paiement réussi et créer les revenue shares" })
   success(@Body() dto: PaymentSuccessDto) {
     return this.paymentsService.processSuccess(dto.paymentId);
+  }
+
+  @Post("pispi/confirm")
+  @Public()
+  @ApiOperation({
+    summary:
+      "Confirmer un paiement PI-SPI : vérifie le statut de la demande auprès de l'API SaaS puis marque les commandes payées",
+  })
+  confirmPispi(@Body() dto: PispiConfirmDto) {
+    return this.paymentsService.confirmPispiPayment(dto.txId);
   }
 }

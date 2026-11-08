@@ -18,6 +18,14 @@ export class PaymentsService {
   private get host() { return this.config.getOrThrow<string>("MONEROO_HOST"); }
   private get secretKey() { return this.config.getOrThrow<string>("MONEROO_SECRET_KEY"); }
 
+  /** Base URL de l'API SaaS PI-SPI (ex: http://localhost:3000/api). */
+  private get pispiSaasApiUrl() {
+    return (
+      this.config.get<string>("PISPI_SAAS_API_URL") ||
+      "http://localhost:3000/api"
+    );
+  }
+
   async initializePayment(body: any) {
     const res = await fetch(`${this.host}/payments/initialize`, {
       method: "POST",
@@ -88,5 +96,30 @@ export class PaymentsService {
     }));
 
     return { orderIds: found.map((o) => o.id) };
+  }
+
+  /**
+   * Confirmation côté serveur d'un paiement PI-SPI : interroge l'API SaaS
+   * (statut de la demande RTP) et, si le paiement est irrévocable, marque
+   * les commandes associées au `txId` comme payées.
+   */
+  async confirmPispiPayment(txId: string) {
+    const res = await fetch(
+      `${this.pispiSaasApiUrl}/pispi/demandes-paiements/${encodeURIComponent(txId)}`,
+    );
+    if (!res.ok) {
+      throw new NotFoundException(`Transaction PI-SPI introuvable (${txId})`);
+    }
+
+    const demande = (await res.json()) as { statut?: string };
+    const statut = String(demande?.statut ?? "").toUpperCase();
+    const isSuccess = ["IRREVOCABLE", "ACCEPTE", "ACCEPTEE"].includes(statut);
+
+    if (!isSuccess) {
+      return { success: false, statut };
+    }
+
+    const { orderIds } = await this.processSuccess(txId);
+    return { success: true, statut, orderIds };
   }
 }

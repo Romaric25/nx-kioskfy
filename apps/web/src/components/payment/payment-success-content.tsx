@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Download,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import {
   Button,
@@ -18,7 +19,10 @@ import {
 import { api } from "@/lib/api";
 import { cartStore } from "@/lib/cart-store";
 import { usePaymentStore } from "@/lib/payment-store";
-import { useVerifyPayment } from "@/hooks/use-payment.hook";
+import {
+  useVerifyPayment,
+  useConfirmPispiPayment,
+} from "@/hooks/use-payment.hook";
 
 export function PaymentSuccessContent({
   urlPaymentId,
@@ -31,6 +35,10 @@ export function PaymentSuccessContent({
   // Use URL payment ID as fallback if store doesn't have it (direct redirect from payment gateway)
   const effectivePaymentId = storePaymentId || urlPaymentId || "";
 
+  // PI-SPI transactions use a `RTP-` prefixed id and are confirmed via the
+  // SaaS API instead of Moneroo.
+  const isPispi = effectivePaymentId.startsWith("RTP-");
+
   // Sync URL payment ID to store on mount if store is empty
   useEffect(() => {
     if (urlPaymentId && !storePaymentId) {
@@ -38,9 +46,18 @@ export function PaymentSuccessContent({
     }
   }, [urlPaymentId, storePaymentId, setPaymentId]);
 
-  const { paymentVerify } = useVerifyPayment(effectivePaymentId || null);
+  const { paymentVerify } = useVerifyPayment(
+    isPispi ? null : effectivePaymentId || null,
+  );
+  const { pispiConfirm } = useConfirmPispiPayment(
+    isPispi ? effectivePaymentId : null,
+  );
 
   const paymentId = effectivePaymentId;
+
+  const isPaymentSuccessful = isPispi
+    ? pispiConfirm?.success === true
+    : paymentVerify?.data?.status === "success";
 
   const hasProcessedPayment = useRef(false);
 
@@ -69,18 +86,18 @@ export function PaymentSuccessContent({
 
   // Clear cart and payment ID after successful payment
   useEffect(() => {
-    if (
-      paymentVerify?.data?.status === "success" &&
-      !hasProcessedPayment.current
-    ) {
+    if (isPaymentSuccessful && !hasProcessedPayment.current) {
       hasProcessedPayment.current = true;
-      handleUpdateUserPhone();
-      processPaymentSuccess();
+      if (!isPispi) {
+        handleUpdateUserPhone();
+        processPaymentSuccess();
+      }
       cartStore.clearCart();
       clearPaymentId();
     }
   }, [
-    paymentVerify,
+    isPaymentSuccessful,
+    isPispi,
     handleUpdateUserPhone,
     processPaymentSuccess,
     clearPaymentId,
@@ -98,6 +115,8 @@ export function PaymentSuccessContent({
     >
       <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
         <Card className="w-full max-w-lg text-center shadow-2xl border-0 bg-gradient-to-b from-background to-muted/20">
+          {isPaymentSuccessful ? (
+            <>
           <CardHeader className="space-y-6 pb-2">
             {/* Success Animation */}
             <div className="mx-auto relative">
@@ -192,6 +211,48 @@ export function PaymentSuccessContent({
               </Link>
             </p>
           </CardContent>
+            </>
+          ) : (
+            <>
+              <CardHeader className="space-y-6 pb-2">
+                <div className="mx-auto relative">
+                  <div className="absolute inset-0 bg-primary/20 rounded-full blur-2xl animate-pulse" />
+                  <div className="relative rounded-full bg-muted p-6">
+                    <Loader2
+                      className="h-16 w-16 text-primary animate-spin"
+                      strokeWidth={2}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <CardTitle className="text-2xl font-bold">
+                    {isPispi
+                      ? "Paiement en cours de confirmation"
+                      : "Vérification du paiement"}
+                  </CardTitle>
+                  <CardDescription className="text-base text-muted-foreground">
+                    {isPispi
+                      ? "Nous vérifions le statut de votre paiement PI-SPI auprès de la plateforme. Cette vérification peut prendre quelques secondes."
+                      : "Nous vérifions votre paiement. Cette vérification peut prendre quelques secondes."}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-4">
+                {isPispi &&
+                pispiConfirm &&
+                !pispiConfirm.success &&
+                pispiConfirm.statut &&
+                ["REJETE", "REJETEE", "ANNULE"].includes(
+                  pispiConfirm.statut.toUpperCase(),
+                ) ? (
+                  <p className="text-sm text-destructive">
+                    Le paiement a été refusé. Veuillez réessayer ou contacter
+                    le support.
+                  </p>
+                ) : null}
+              </CardContent>
+            </>
+          )}
         </Card>
       </div>
     </Suspense>

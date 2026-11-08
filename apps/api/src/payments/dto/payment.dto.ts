@@ -28,3 +28,9 @@ export class PaymentSuccessDto {
   @IsString()
   paymentId!: string;
 }
+
+export class PispiConfirmDto {
+  @ApiProperty({ example: "RTP-2026-0001" })
+  @IsString()
+  txId!: string;
+}

@@ -28,3 +28,31 @@ export function useProcessPaymentSuccess() {
     mutationFn: (paymentId: string) => api.payments.success({ paymentId }),
   });
 }
+
+/**
+ * Confirm a PI-SPI payment server-side (`POST /payments/pispi/confirm`).
+ * Polls every 5 s until the API reports success (the RTP status may take
+ * a few seconds to become irrevocable).
+ */
+export function useConfirmPispiPayment(txId: string | null) {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["payment", "pispi", "confirm", txId],
+    queryFn: () =>
+      api.payments.confirmPispi({ txId: txId as string }) as Promise<{
+        success: boolean;
+        statut?: string;
+        orderIds?: string[];
+      }>,
+    enabled: !!txId,
+    retry: 2,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data?.success === true) return false;
+      const statut = String(data?.statut ?? "").toUpperCase();
+      if (["REJETE", "REJETEE", "ANNULE"].includes(statut)) return false;
+      return 5000;
+    },
+  });
+
+  return { pispiConfirm: data, isLoading, isError, error };
+}

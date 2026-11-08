@@ -62,4 +62,18 @@ export class PaymentsResource {
   ): Promise<unknown> {
     return this.fetch("/payments/success", buildInit("POST", opts, data));
   }
+
+  /**
+   * Confirm a PI-SPI payment server-side. The API checks the RTP request
+   * status with the SaaS API and marks the related orders as paid.
+   */
+  async confirmPispi(
+    data: { txId: string },
+    opts?: FetchOptions,
+  ): Promise<{ success: boolean; statut?: string; orderIds?: string[] }> {
+    return this.fetch(
+      "/payments/pispi/confirm",
+      buildInit("POST", opts, data),
+    );
+  }
 }
