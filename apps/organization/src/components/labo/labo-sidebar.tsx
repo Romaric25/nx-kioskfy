@@ -6,6 +6,7 @@ import {
   Settings,
   Eye,
   Plus,
+  Users,
   LogOut,
 } from "lucide-react";
 import {
@@ -25,7 +26,7 @@ import {
   AvatarImage,
   Button,
 } from "@kioskfy/ui";
-import { useSession, useSignOut } from "@kioskfy/auth-client";
+import { useSession, useSignOut, useOrganizationPermission } from "@kioskfy/auth-client";
 import { useSelectedOrganization } from "@/lib/selected-organization-store";
 import { Logo } from "@/components/ui/logo";
 
@@ -46,6 +47,23 @@ export function LaboSidebar() {
   const pathname = useLocation().pathname;
   const { organizationId } = useSelectedOrganization();
 
+  // Gestion des collaborateurs : owner + admin (member:create/update/delete).
+  const {
+    hasPermission: canManageMembers,
+    isLoading: isPermissionLoading,
+  } = useOrganizationPermission({
+    permissions: {
+      member: ["create", "update", "delete"],
+    },
+    orgId: organizationId || undefined,
+  });
+
+  // Affiche « Collaborateurs » tant que la vérification n'est pas terminée ou
+  // qu'aucune organisation n'est sélectionnée (l'item sera désactivé comme
+  // les autres). Ne le masque que si la permission est explicitement refusée.
+  const showMembers =
+    !organizationId || isPermissionLoading || canManageMembers;
+
   const navMain = [
     {
       title: "Tableau de bord",
@@ -65,6 +83,18 @@ export function LaboSidebar() {
       icon: Newspaper,
       isActive: pathname.startsWith("/organization/dashboard/newspapers"),
     },
+    // Visible uniquement pour les rôles qui peuvent gérer les membres
+    // (owner + admin) : vérifié via le plugin organization de Better Auth.
+    ...(showMembers
+      ? [
+          {
+            title: "Collaborateurs",
+            url: "/organization/dashboard/members",
+            icon: Users,
+            isActive: pathname.startsWith("/organization/dashboard/members"),
+          },
+        ]
+      : []),
     {
       title: "Publier une édition",
       url: "/organization/dashboard/publish",

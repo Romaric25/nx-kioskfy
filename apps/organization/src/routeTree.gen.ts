@@ -22,6 +22,7 @@ import { Route as OrganizationDashboardRevenueRouteImport } from './routes/organ
 import { Route as OrganizationDashboardPublishRouteImport } from './routes/organization/dashboard/publish'
 import { Route as OrganizationDashboardOverviewRouteImport } from './routes/organization/dashboard/overview'
 import { Route as OrganizationDashboardNewspapersRouteImport } from './routes/organization/dashboard/newspapers'
+import { Route as OrganizationDashboardMembersRouteImport } from './routes/organization/dashboard/members'
 
 const OrganizationRoute = OrganizationRouteImport.update({
   id: '/organization',
@@ -95,6 +96,12 @@ const OrganizationDashboardNewspapersRoute =
     path: '/newspapers',
     getParentRoute: () => OrganizationDashboardRoute,
   } as any)
+const OrganizationDashboardMembersRoute =
+  OrganizationDashboardMembersRouteImport.update({
+    id: '/members',
+    path: '/members',
+    getParentRoute: () => OrganizationDashboardRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/organization/render': typeof OrganizationRenderRoute
   '/organization/subscription': typeof OrganizationSubscriptionRoute
   '/organization/': typeof OrganizationIndexRoute
+  '/organization/dashboard/members': typeof OrganizationDashboardMembersRoute
   '/organization/dashboard/newspapers': typeof OrganizationDashboardNewspapersRoute
   '/organization/dashboard/overview': typeof OrganizationDashboardOverviewRoute
   '/organization/dashboard/publish': typeof OrganizationDashboardPublishRoute
@@ -117,6 +125,7 @@ export interface FileRoutesByTo {
   '/organization/render': typeof OrganizationRenderRoute
   '/organization/subscription': typeof OrganizationSubscriptionRoute
   '/organization': typeof OrganizationIndexRoute
+  '/organization/dashboard/members': typeof OrganizationDashboardMembersRoute
   '/organization/dashboard/newspapers': typeof OrganizationDashboardNewspapersRoute
   '/organization/dashboard/overview': typeof OrganizationDashboardOverviewRoute
   '/organization/dashboard/publish': typeof OrganizationDashboardPublishRoute
@@ -133,6 +142,7 @@ export interface FileRoutesById {
   '/organization/render': typeof OrganizationRenderRoute
   '/organization/subscription': typeof OrganizationSubscriptionRoute
   '/organization/': typeof OrganizationIndexRoute
+  '/organization/dashboard/members': typeof OrganizationDashboardMembersRoute
   '/organization/dashboard/newspapers': typeof OrganizationDashboardNewspapersRoute
   '/organization/dashboard/overview': typeof OrganizationDashboardOverviewRoute
   '/organization/dashboard/publish': typeof OrganizationDashboardPublishRoute
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/organization/render'
     | '/organization/subscription'
     | '/organization/'
+    | '/organization/dashboard/members'
     | '/organization/dashboard/newspapers'
     | '/organization/dashboard/overview'
     | '/organization/dashboard/publish'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/organization/render'
     | '/organization/subscription'
     | '/organization'
+    | '/organization/dashboard/members'
     | '/organization/dashboard/newspapers'
     | '/organization/dashboard/overview'
     | '/organization/dashboard/publish'
@@ -178,6 +190,7 @@ export interface FileRouteTypes {
     | '/organization/render'
     | '/organization/subscription'
     | '/organization/'
+    | '/organization/dashboard/members'
     | '/organization/dashboard/newspapers'
     | '/organization/dashboard/overview'
     | '/organization/dashboard/publish'
@@ -284,10 +297,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrganizationDashboardNewspapersRouteImport
       parentRoute: typeof OrganizationDashboardRoute
     }
+    '/organization/dashboard/members': {
+      id: '/organization/dashboard/members'
+      path: '/members'
+      fullPath: '/organization/dashboard/members'
+      preLoaderRoute: typeof OrganizationDashboardMembersRouteImport
+      parentRoute: typeof OrganizationDashboardRoute
+    }
   }
 }
 
 interface OrganizationDashboardRouteChildren {
+  OrganizationDashboardMembersRoute: typeof OrganizationDashboardMembersRoute
   OrganizationDashboardNewspapersRoute: typeof OrganizationDashboardNewspapersRoute
   OrganizationDashboardOverviewRoute: typeof OrganizationDashboardOverviewRoute
   OrganizationDashboardPublishRoute: typeof OrganizationDashboardPublishRoute
@@ -297,6 +318,7 @@ interface OrganizationDashboardRouteChildren {
 }
 
 const OrganizationDashboardRouteChildren: OrganizationDashboardRouteChildren = {
+  OrganizationDashboardMembersRoute: OrganizationDashboardMembersRoute,
   OrganizationDashboardNewspapersRoute: OrganizationDashboardNewspapersRoute,
   OrganizationDashboardOverviewRoute: OrganizationDashboardOverviewRoute,
   OrganizationDashboardPublishRoute: OrganizationDashboardPublishRoute,

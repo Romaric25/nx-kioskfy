@@ -17,11 +17,22 @@
  */
 
 import { create } from "zustand";
+import { useEffect, useState } from "react";
 
 // ── Roles ─────────────────────────────────────────────────────────────────
 
 /** System-wide roles allowed to access the admin panel. */
 export const ADMIN_ROLES = ["admin", "superadmin"] as const;
+
+/** Rôles d'organisation (plugin organization de Better Auth). */
+export const ORGANIZATION_ROLES = [
+  "owner",
+  "admin",
+  "member",
+  "editor",
+] as const;
+
+export type OrganizationRole = (typeof ORGANIZATION_ROLES)[number];
 
 /** True if the user has an admin system role. */
 export function isAdminRole(
@@ -29,6 +40,267 @@ export function isAdminRole(
 ): boolean {
   if (!user || !user.role) return false;
   return (ADMIN_ROLES as readonly string[]).includes(user.role);
+}
+
+// ── Permissions (plugin organization de Better Auth) ────────────────────────
+
+/**
+ * Permissions par ressource, alignées sur le statement de
+ * `apps/api/src/lib/permissions.ts`.
+ */
+export interface PermissionMap {
+  agency?: string[];
+  project?: string[];
+  organization?: string[];
+  member?: string[];
+  invitation?: string[];
+}
+
+/**
+ * Vérifie côté serveur (Better Auth `POST /organization/has-permission`)
+ * que l'utilisateur a TOUTES les permissions demandées dans l'organisation.
+ * Retourne `false` sur refus ou erreur réseau (jamais d'exception).
+ */
+export async function checkOrganizationPermission(
+  permissions: PermissionMap,
+  opts?: { orgSlug?: string; orgId?: string },
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${_baseURL}${_basePath}/organization/has-permission`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        // Better Auth 1.6 attend `organizationId` (pas `orgId`) : sinon le
+        // champ est ignoré et l'endpoint retombe sur la session active (souvent
+        // nulle) → NO_ACTIVE_ORGANIZATION → menu masqué à tort.
+        body: JSON.stringify({
+          permissions,
+          ...(opts?.orgId ? { organizationId: opts.orgId } : {}),
+          ...(opts?.orgSlug ? { organizationSlug: opts.orgSlug } : {}),
+        }),
+      },
+    );
+    if (!res.ok) return false;
+    const data = (await res.json()) as {
+      success?: boolean;
+      data?: { success?: boolean };
+    };
+    return data?.success === true || data?.data?.success === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Vérifie côté serveur (Better Auth `POST /admin/has-permission`)
+ * que l'utilisateur a TOUTES les permissions système demandées.
+ */
+export async function checkAdminPermission(
+  permissions: Record<string, string[]>,
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${_baseURL}${_basePath}/admin/has-permission`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ permissions }),
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as {
+      success?: boolean;
+      data?: { success?: boolean };
+    };
+    return data?.success === true || data?.data?.success === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Hook React : permissions de l'utilisateur dans l'organisation active.
+ *
+ * @example
+ * ```tsx
+ * const { hasPermission: canPublish, isLoading } = useOrganizationPermission({
+ *   permissions: { agency: ["publish"] },
+ *   orgSlug: organization.slug,
+ * });
+ * ```
+ */
+export function useOrganizationPermission(opts: {
+  permissions: PermissionMap;
+  orgSlug?: string;
+  orgId?: string;
+}): { hasPermission: boolean; isLoading: boolean; refetch: () => void } {
+  const [hasPermission, setHasPermission] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+
+  const permissionsKey = JSON.stringify(opts.permissions);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    void checkOrganizationPermission(opts.permissions, {
+      orgSlug: opts.orgSlug,
+      orgId: opts.orgId,
+    })
+      .then((ok) => {
+        if (cancelled) return;
+        setHasPermission(ok);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setHasPermission(false);
+        setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permissionsKey, opts.orgSlug, opts.orgId, tick]);
+
+  return {
+    hasPermission,
+    isLoading,
+    refetch: () => setTick((t) => t + 1),
+  };
+}
+
+// ── Membres & invitations (plugin organization de Better Auth) ──────────────
+
+/** Membre d'une organisation (Better Auth `get-full-organization`). */
+export interface OrganizationMember {
+  id: string;
+  role: OrganizationRole | (string & {});
+  userId: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    image?: string | null;
+  };
+}
+
+/** Invitation en attente (Better Auth `list-invitations`). */
+export interface OrganizationInvitation {
+  id: string;
+  email: string;
+  role: OrganizationRole | (string & {});
+  status?: string;
+  expiresAt?: string;
+}
+
+/** Organisation complète : membres + invitations. */
+export interface FullOrganization {
+  id: string;
+  name: string;
+  slug: string;
+  members: OrganizationMember[];
+  invitations: OrganizationInvitation[];
+}
+
+/**
+ * Récupère les membres et invitations d'une organisation
+ * (Better Auth `POST /organization/get-full-organization`).
+ */
+export async function getFullOrganization(input: {
+  orgSlug?: string;
+  orgId?: string;
+}): Promise<FullOrganization> {
+  // Better Auth 1.6 : GET avec paramètres de requête `organizationId` /
+  // `organizationSlug` (le POST body n'est pas supporté).
+  const params = new URLSearchParams();
+  if (input.orgId) params.set("organizationId", input.orgId);
+  if (input.orgSlug) params.set("organizationSlug", input.orgSlug);
+  const data = await authFetch(
+    `/organization/get-full-organization?${params.toString()}`,
+  );
+  const payload = data?.data ?? data ?? {};
+  return {
+    id: payload?.id,
+    name: payload?.name,
+    slug: payload?.slug,
+    members: Array.isArray(payload?.members) ? payload.members : [],
+    invitations: Array.isArray(payload?.invitations) ? payload.invitations : [],
+  };
+}
+
+/**
+ * Invite un collaborateur par email avec un rôle
+ * (Better Auth `POST /organization/invite-member`).
+ */
+export async function inviteOrganizationMember(input: {
+  email: string;
+  role: OrganizationRole;
+  orgSlug?: string;
+  orgId?: string;
+}): Promise<OrganizationInvitation> {
+  const data = await authFetch("/organization/invite-member", {
+    method: "POST",
+    body: JSON.stringify({
+      email: input.email,
+      role: input.role,
+      ...(input.orgId ? { organizationId: input.orgId } : {}),
+      ...(input.orgSlug ? { organizationSlug: input.orgSlug } : {}),
+    }),
+  });
+  return (data?.data ?? data ?? {}) as OrganizationInvitation;
+}
+
+/**
+ * Retire un membre (ou une invitation par email)
+ * (Better Auth `POST /organization/remove-member`).
+ */
+export async function removeOrganizationMember(input: {
+  memberIdOrEmail: string;
+  orgSlug?: string;
+  orgId?: string;
+}): Promise<void> {
+  await authFetch("/organization/remove-member", {
+    method: "POST",
+    body: JSON.stringify({
+      memberIdOrEmail: input.memberIdOrEmail,
+      ...(input.orgId ? { organizationId: input.orgId } : {}),
+      ...(input.orgSlug ? { organizationSlug: input.orgSlug } : {}),
+    }),
+  });
+}
+
+/**
+ * Change le rôle d'un membre (Better Auth `POST /organization/update-member-role`).
+ */
+export async function updateOrganizationMemberRole(input: {
+  memberId: string;
+  role: OrganizationRole;
+  orgSlug?: string;
+  orgId?: string;
+}): Promise<void> {
+  await authFetch("/organization/update-member-role", {
+    method: "POST",
+    body: JSON.stringify({
+      memberId: input.memberId,
+      role: input.role,
+      ...(input.orgId ? { organizationId: input.orgId } : {}),
+      ...(input.orgSlug ? { organizationSlug: input.orgSlug } : {}),
+    }),
+  });
+}
+
+/**
+ * Annule une invitation en attente
+ * (Better Auth `POST /organization/cancel-invitation`).
+ */
+export async function cancelOrganizationInvitation(input: {
+  invitationId: string;
+}): Promise<void> {
+  await authFetch("/organization/cancel-invitation", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────
