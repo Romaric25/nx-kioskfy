@@ -59,7 +59,12 @@ export class OrdersService {
 
   async getOrganizationStats(organizationId: string) {
     const [statsRow] = await this.db
-      .select({ totalRevenue: sum(revenueShares.totalAmount), totalSales: count(revenueShares.id) })
+      .select({
+        totalRevenue: sum(revenueShares.totalAmount),
+        totalOrgRevenue: sum(revenueShares.organizationAmount),
+        totalPlatformRevenue: sum(revenueShares.platformAmount),
+        totalSales: count(revenueShares.id),
+      })
       .from(revenueShares)
       .where(and(eq(revenueShares.organizationId, organizationId), sql`${revenueShares.status} != 'cancelled'`));
 
@@ -74,10 +79,25 @@ export class OrdersService {
 
     return {
       totalRevenue: Number(statsRow?.totalRevenue || 0),
+      totalOrgRevenue: Number(statsRow?.totalOrgRevenue || 0),
+      totalPlatformRevenue: Number(statsRow?.totalPlatformRevenue || 0),
       totalSales: statsRow?.totalSales || 0,
       publishedCount,
       recentSales,
     };
+  }
+
+  /**
+   * Toutes les commandes de l'agence (journaux publiés par elle), avec la
+   * répartition des revenus (commission plateforme / part organisation)
+   * issue de `revenue_shares`.
+   */
+  async getOrganizationOrders(organizationId: string) {
+    return this.db.query.orders.findMany({
+      where: sql`${orders.newspaperId} IN (SELECT id FROM newspapers WHERE organizationId = ${organizationId})` as any,
+      with: { user: true, newspaper: true, revenueShare: true },
+      orderBy: (o, { desc }) => [desc(o.createdAt)],
+    });
   }
 
   async getOrganizationCustomers(organizationId: string) {

@@ -5,6 +5,7 @@ import type {
   BatchOrderInput,
   OrganizationStatsResponse,
   OrganizationCustomersResponse,
+  OrganizationOrder,
 } from "@kioskfy/types";
 import type { FetchOptions } from "../types";
 
@@ -91,6 +92,17 @@ export class OrdersResource {
   ): Promise<OrganizationCustomersResponse> {
     return this.fetch(
       `/orders/organization/${orgId}/customers`,
+      buildInit("GET", opts),
+    );
+  }
+
+  /** Get all orders of an organization (with revenue share). */
+  async getOrganizationOrders(
+    orgId: string,
+    opts?: FetchOptions,
+  ): Promise<OrganizationOrder[]> {
+    return this.fetch(
+      `/orders/organization/${orgId}/orders`,
       buildInit("GET", opts),
     );
   }

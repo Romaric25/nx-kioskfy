@@ -58,6 +58,7 @@ export type {
   OrganizationBalanceResponse,
   OrganizationStatsResponse,
   RecentSale,
+  OrganizationOrder,
   OrganizationCustomer,
   OrganizationCustomersResponse,
 } from "./accounting.types";

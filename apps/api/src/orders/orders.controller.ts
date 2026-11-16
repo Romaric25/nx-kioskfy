@@ -41,6 +41,13 @@ export class OrdersController {
     return this.ordersService.getOrganizationStats(orgId);
   }
 
+  @Get("organization/:organizationId/orders")
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: "Toutes les commandes d'une organisation" })
+  getOrgOrders(@Param("organizationId") orgId: string) {
+    return this.ordersService.getOrganizationOrders(orgId);
+  }
+
   @Get("organization/:organizationId/customers")
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: "Clients d'une organisation" })
