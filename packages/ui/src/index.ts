@@ -152,6 +152,19 @@ export type { ChartConfig } from "./components/ui/chart";
 
 export { cn } from "./lib/utils";
 export { currencySymbol, formatCurrency } from "./lib/format-currency";
+export {
+  AlertDialog,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "./components/ui/alert-dialog";
 export { useIsMobile } from "./hooks/use-mobile";
 
 export { NotFoundPage } from "./components/not-found";

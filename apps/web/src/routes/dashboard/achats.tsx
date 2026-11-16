@@ -19,6 +19,15 @@ import {
   Trash2,
 } from "lucide-react";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
   Badge,
   Button,
   Card,
@@ -112,16 +121,6 @@ function AchatsPage() {
       );
     },
   });
-
-  const handleDeleteOrder = (order: MyOrder) => {
-    if (
-      window.confirm(
-        "Supprimer cette commande en attente de paiement ? Vous pourrez la recommander plus tard.",
-      )
-    ) {
-      deleteOrder.mutate(order.id);
-    }
-  };
 
   /**
    * Fermeture du widget PI-SPI : on laisse la page de succès confirmer
@@ -390,20 +389,44 @@ function AchatsPage() {
                           />
                         )}
                         {status === "pending" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={deleteOrder.isPending}
-                            className="w-full sm:w-auto text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteOrder(order)}
-                          >
-                            {deleteOrder.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 data-icon="inline-start" />
-                            )}
-                            Supprimer
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full sm:w-auto text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 data-icon="inline-start" />
+                                Supprimer
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Supprimer cette commande ?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  La commande «
+                                  {order.newspaper?.issueNumber ?? "journal"}{" "}
+                                  » en attente de paiement sera supprimée. Vous
+                                  pourrez la recommander plus tard.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive text-white hover:bg-destructive/90"
+                                  disabled={deleteOrder.isPending}
+                                  onClick={() => deleteOrder.mutate(order.id)}
+                                >
+                                  {deleteOrder.isPending && (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  )}
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         )}
                         <Button
                           asChild
