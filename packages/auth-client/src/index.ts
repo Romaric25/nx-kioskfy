@@ -440,8 +440,14 @@ export function refreshSession(): Promise<SessionUser | null> {
 
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-  return match?.[1] ?? null;
+  const names = [name, `__Secure-${name}`, `__Host-${name}`];
+  for (const candidate of names) {
+    const match = document.cookie.match(
+      new RegExp(`(?:^|;\\s*)${candidate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]*)`),
+    );
+    if (match) return match[1] ?? null;
+  }
+  return null;
 }
 
 // ── Public hooks ──────────────────────────────────────────────────────────
@@ -452,6 +458,16 @@ export function useSession() {
   const isLoading = useAuthStore((s) => s.isLoading);
 
   const isAuthenticated = !!user || !!getCookie("kioskfy.session_token");
+
+  // Auto-réhydratation : si la page vient d'être rechargée et que la
+  // session n'a pas encore été chargée (ou qu'un premier fetch a échoué),
+  // on la récupère à nouveau. Évite d'apparaître déconnecté après un
+  // rechargement alors que le cookie de session est valide.
+  useEffect(() => {
+    if (!user && !isLoading) {
+      refreshSession();
+    }
+  }, [user, isLoading]);
 
   return {
     user,

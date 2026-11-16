@@ -4,6 +4,7 @@ import { AppModule } from './app/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { ConfigService } from '@nestjs/config';
 
@@ -15,6 +16,26 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
+
+  // Expire les anciens cookies de session émis avec `Domain=kioskfy.com`
+  // (avant le passage aux cookies host-only, commit f48a245). Les
+  // navigateurs qui les conservent encore les envoient en doublon avec le
+  // cookie host-only : la session peut échouer (session en base purgée)
+  // et l'utilisateur est déconnecté à chaque rechargement. La première
+  // réponse de l'API purge ces cookies chez le client.
+  const legacySessionCookies = [
+    '__Secure-kioskfy.session_token',
+    'kioskfy.session_token',
+  ];
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    for (const name of legacySessionCookies) {
+      res.append(
+        'Set-Cookie',
+        `${name}=; Domain=kioskfy.com; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax`,
+      );
+    }
+    next();
+  });
 
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ limit: '50mb', extended: true }));
