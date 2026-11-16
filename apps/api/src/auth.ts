@@ -148,10 +148,10 @@ export function createAuth(db: Database) {
   },
   session: {
       modelName: "sessions",
-      cookieCache: {
-        enabled: true,
-        maxAge: 60 * 60 * 24 * 30, // 30 jours
-      },
+      // cookieCache désactivé : la session est TOUJOURS validée en base.
+      // Avec le cache activé, le payload de session vit 30 jours dans le
+      // cookie signé — une déconnexion (session supprimée en DB) ne
+      // déconnectait donc pas réellement le navigateur.
     },
   account: {
     modelName: "accounts",
