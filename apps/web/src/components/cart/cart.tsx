@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Image } from "@unpic/react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Trash2,
   ShoppingCart,
@@ -37,6 +37,15 @@ export function Cart() {
   const items = useCartStore();
   const { isAuthenticated } = useSession();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Alias PI-SPI déjà utilisé par le client sur une commande payée :
+  // préremplit le champ alias du checkout (il reste modifiable).
+  const { data: payeurAliasData } = useQuery({
+    queryKey: ["myPayeurAlias"],
+    queryFn: () => api.orders.getMyPayeurAlias(),
+    enabled: isAuthenticated,
+    retry: 1,
+  });
 
   const createBatch = useMutation({
     mutationFn: (data: BatchOrderInput) => api.orders.createBatch(data),
@@ -233,6 +242,7 @@ export function Cart() {
                   <PispiCheckout
                     amount={Math.round(cartStore.total())}
                     motif={`Achat de ${items.length} journal(aux) sur Kioskfy`}
+                    initialAlias={payeurAliasData?.alias ?? null}
                     createOrders={createOrdersForPispi}
                     linkOrdersToPayment={(orderIds, paymentId) =>
                       updatePaymentId.mutateAsync({ orderIds, paymentId })

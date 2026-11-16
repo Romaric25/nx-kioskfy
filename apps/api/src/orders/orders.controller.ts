@@ -27,6 +27,13 @@ export class OrdersController {
     return this.ordersService.getByUserId(session.user.id);
   }
 
+  @Get("my/payeur-alias")
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: "Dernier alias PI-SPI (payeur) utilisé par l'utilisateur" })
+  getMyPayeurAlias(@Session() session: AuthSession) {
+    return this.ordersService.getLastPayeurAlias(session.user.id);
+  }
+
   @Get("check/:newspaperId")
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: "Vérifier l'achat d'un journal" })

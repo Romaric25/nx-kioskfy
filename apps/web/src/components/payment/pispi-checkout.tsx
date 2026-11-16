@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { mountCheckout } from "@pi-spi/checkout";
+import { mountCheckout, isValidAlias } from "@pi-spi/checkout";
 import type { PispiCheckoutCloseResult } from "@pi-spi/checkout";
 import { createPispiPaymentRequest, getPispiPaymentStatus } from "@/lib/pispi";
 import { api } from "@/lib/api";
@@ -9,6 +9,11 @@ export interface PispiCheckoutProps {
   amount: number;
   /** Motif affiché au payeur. */
   motif: string;
+  /**
+   * Alias PI-SPI (payeur) déjà connu du client : préremplit le champ
+   * alias du modal à l'ouverture (le client peut toujours le modifier).
+   */
+  initialAlias?: string | null;
   /**
    * Crée les commandes kioskfy (et les lie au futur txId) — appelé quand le
    * payeur valide son alias dans le widget.
@@ -20,14 +25,34 @@ export interface PispiCheckoutProps {
   onClose: (result: PispiCheckoutCloseResult) => void;
 }
 
+const MODAL_SELECTOR = 'div[data-pispi-checkout="modal"]';
+
+/** Remplit le champ alias du modal PI-SPI (shadow DOM ouvert). */
+function prefillModalAlias(alias: string): void {
+  const host = document.body.querySelector<HTMLElement>(MODAL_SELECTOR);
+  const input = host?.shadowRoot?.querySelector<HTMLInputElement>(
+    'input:not([type="file"])',
+  );
+  if (!input) return;
+  // Ne jamais écraser une saisie manuelle ou un scan QR.
+  if (input.value.trim()) return;
+  input.value = alias;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 /**
  * Bouton « Payer avec PI-SPI » (librairie @pi-spi/checkout) branché sur
  * l'API SaaS PI-SPI. Le widget gère la saisie de l'alias, le polling du
  * statut et l'affichage de la facture.
+ *
+ * `initialAlias` préremplit le champ alias du modal : le widget rend son
+ * modal en shadow DOM ouvert, créé à l'ouverture — on observe
+ * `document.body` et on remplit le champ dès qu'il apparaît.
  */
 export function PispiCheckout({
   amount,
   motif,
+  initialAlias = null,
   createOrders,
   linkOrdersToPayment,
   onClose,
@@ -36,9 +61,11 @@ export function PispiCheckout({
   const onCloseRef = useRef(onClose);
   const createOrdersRef = useRef(createOrders);
   const linkOrdersRef = useRef(linkOrdersToPayment);
+  const initialAliasRef = useRef(initialAlias);
   onCloseRef.current = onClose;
   createOrdersRef.current = createOrders;
   linkOrdersRef.current = linkOrdersToPayment;
+  initialAliasRef.current = initialAlias;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -100,7 +127,20 @@ export function PispiCheckout({
       onClose: (result) => onCloseRef.current(result),
     });
 
-    return () => checkout.unmount();
+    // Préremplit l'alias du client dès que le modal apparaît (le modal est
+    // créé à l'ouverture, en shadow DOM ouvert attaché à document.body).
+    const observer = new MutationObserver(() => {
+      const alias = initialAliasRef.current;
+      if (alias && isValidAlias(alias) && document.body.querySelector(MODAL_SELECTOR)) {
+        prefillModalAlias(alias);
+      }
+    });
+    observer.observe(document.body, { childList: true });
+
+    return () => {
+      observer.disconnect();
+      checkout.unmount();
+    };
   }, [amount, motif]);
 
   return <div ref={containerRef} className="w-full" />;

@@ -63,6 +63,13 @@ export class OrdersResource {
     return this.fetch("/orders/my", buildInit("GET", opts));
   }
 
+  /** Dernier alias PI-SPI (payeur) utilisé par l'utilisateur connecté. */
+  async getMyPayeurAlias(
+    opts?: FetchOptions,
+  ): Promise<{ alias: string | null }> {
+    return this.fetch("/orders/my/payeur-alias", buildInit("GET", opts));
+  }
+
   /** Check if the current user has purchased a newspaper. */
   async check(
     newspaperId: string,

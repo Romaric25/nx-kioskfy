@@ -50,6 +50,23 @@ export class OrdersService {
     });
   }
 
+  /**
+   * Dernier alias PI-SPI (payeur) utilisé par l'utilisateur sur une
+   * commande payée — permet de préremplir le champ alias du checkout.
+   */
+  async getLastPayeurAlias(userId: string): Promise<{ alias: string | null }> {
+    const row = await this.db.query.orders.findFirst({
+      where: and(
+        eq(orders.userId, userId),
+        eq(orders.status as any, "completed"),
+        sql`${orders.payeurAlias} IS NOT NULL AND ${orders.payeurAlias} != ''`,
+      ),
+      orderBy: (o, { desc }) => [desc(o.createdAt)],
+      columns: { payeurAlias: true },
+    });
+    return { alias: row?.payeurAlias ?? null };
+  }
+
   async hasUserPurchased(userId: string, newspaperId: string): Promise<boolean> {
     const result = await this.db.query.orders.findFirst({
       where: and(eq(orders.userId, userId), eq(orders.newspaperId, newspaperId), eq(orders.status as any, "completed")),
