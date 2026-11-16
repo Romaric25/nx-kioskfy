@@ -1,8 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { Image } from "@unpic/react";
-import type { PispiCheckoutCloseResult } from "@pi-spi/checkout";
 import {
   ShoppingBag,
   Eye,
@@ -15,7 +13,6 @@ import {
   CheckCircle2,
   XCircle,
   BookOpen,
-  AlertCircle,
 } from "lucide-react";
 import {
   Badge,
@@ -29,8 +26,6 @@ import {
   Input,
 } from "@kioskfy/ui";
 import { useMyOrders, type MyOrder } from "@/hooks/use-orders.hook";
-import { PispiCheckout } from "@/components/payment/pispi-checkout";
-import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/dashboard/achats")({
   component: AchatsPage,
@@ -70,53 +65,10 @@ const STATUS_CONFIG: Record<
 };
 
 function AchatsPage() {
-  const navigate = useNavigate();
   const { data: orders, isLoading, error } = useMyOrders();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
   const itemsPerPage = 5;
-
-  // Alias PI-SPI déjà utilisé par le client : préremplit le champ alias
-  // du checkout (il reste modifiable).
-  const { data: payeurAliasData } = useQuery({
-    queryKey: ["myPayeurAlias"],
-    queryFn: () => api.orders.getMyPayeurAlias(),
-    retry: 1,
-  });
-
-  const updatePaymentId = useMutation({
-    mutationFn: ({
-      orderIds,
-      paymentId,
-    }: {
-      orderIds: string[];
-      paymentId: string;
-    }) => api.orders.updatePaymentId(orderIds, paymentId),
-  });
-
-  /**
-   * Fermeture du widget PI-SPI : on laisse la page de succès confirmer
-   * côté serveur (même en cas de timeout, le paiement a pu être reçu).
-   */
-  const handlePaymentClose = (result: PispiCheckoutCloseResult) => {
-    if (result.txId) {
-      navigate({
-        to: "/payment/success",
-        search: { paymentId: result.txId } as never,
-      });
-      return;
-    }
-    if (result.status === "rejected") {
-      setPaymentError(
-        "Le paiement PI-SPI a été rejeté. Vous pouvez réessayer.",
-      );
-    } else if (result.status === "timeout") {
-      setPaymentError(
-        "Le paiement PI-SPI a expiré. Vérifiez vos notifications avant de réessayer.",
-      );
-    }
-  };
 
   const orderList = orders ?? [];
 
@@ -211,16 +163,6 @@ function AchatsPage() {
           Retrouvez l&apos;historique de tous vos achats de journaux
         </p>
       </div>
-
-      {paymentError && (
-        <div
-          role="alert"
-          className="flex items-start gap-3 rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{paymentError}</span>
-        </div>
-      )}
 
       <Card>
         <CardHeader>
@@ -326,7 +268,7 @@ function AchatsPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2 sm:shrink-0 sm:w-44">
+                      <div className="flex flex-col gap-2 sm:shrink-0">
                         {status === "completed" && order.newspaperId && (
                           <Button
                             asChild
@@ -341,25 +283,6 @@ function AchatsPage() {
                               Lire le journal
                             </Link>
                           </Button>
-                        )}
-                        {(status === "pending" || status === "failed") && (
-                          <PispiCheckout
-                            amount={Math.round(Number(order.price))}
-                            motif={`Achat ${
-                              order.newspaper?.issueNumber ?? "de journal"
-                            } sur Kioskfy`}
-                            initialAlias={payeurAliasData?.alias ?? null}
-                            resolveOrderIds={() =>
-                              Promise.resolve({ orderIds: [order.id] })
-                            }
-                            linkOrdersToPayment={(orderIds, paymentId) =>
-                              updatePaymentId.mutateAsync({
-                                orderIds,
-                                paymentId,
-                              })
-                            }
-                            onClose={handlePaymentClose}
-                          />
                         )}
                         <Button
                           asChild
