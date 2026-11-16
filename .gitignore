@@ -50,7 +50,6 @@ Thumbs.db
 
 .nx/polygraph
 /.swc
-.swcrc
 
 # MaxMind GeoIP database
 apps/api/data/GeoLite2-Country.mmdb

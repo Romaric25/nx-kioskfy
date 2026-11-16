@@ -1,0 +1,27 @@
+{
+  "$schema": "https://swc.rs/schema.json",
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "decorators": true
+    },
+    "transform": {
+      "legacyDecorator": true,
+      "decoratorMetadata": true
+    },
+    "experimental": {
+      "plugins": [
+        [
+          "/Users/romaric/Documents/TANSTACK_KIOSKFY /monorepo/apps/api/node_modules/@workflow/swc-plugin/swc_plugin_workflow.wasm",
+          {
+            "mode": "client"
+          }
+        ]
+      ]
+    }
+  },
+  "module": {
+    "type": "commonjs"
+  },
+  "sourceMaps": true
+}
