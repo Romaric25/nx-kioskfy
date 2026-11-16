@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useCallback, useRef } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle2,
   Newspaper,
@@ -7,6 +8,7 @@ import {
   Download,
   Sparkles,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import {
   Button,
@@ -23,6 +25,7 @@ import {
   useVerifyPayment,
   useConfirmPispiPayment,
 } from "@/hooks/use-payment.hook";
+import type { MyOrder } from "@/hooks/use-orders.hook";
 
 export function PaymentSuccessContent({
   urlPaymentId,
@@ -49,14 +52,42 @@ export function PaymentSuccessContent({
   const { paymentVerify } = useVerifyPayment(
     isPispi ? null : effectivePaymentId || null,
   );
-  const { pispiConfirm } = useConfirmPispiPayment(
+  const {
+    pispiConfirm,
+    refetch: refetchPispiConfirm,
+  } = useConfirmPispiPayment(
     isPispi ? effectivePaymentId : null,
+  );
+
+  // Fallback fiable : les commandes sont marquées « completed » par le
+  // webhook PI-SPI. Si la confirmation est indisponible mais qu'une commande
+  // liée à ce paiement est déjà payée, on considère le paiement réussi
+  // (et le panier est vidé). Polling toutes les 5 s tant que rien n'est payé.
+  const { data: myOrders } = useQuery({
+    queryKey: ["payment", "success", "myOrders", effectivePaymentId],
+    queryFn: () => api.orders.getMy() as Promise<MyOrder[]>,
+    enabled: isPispi && !!effectivePaymentId,
+    retry: 1,
+    refetchInterval: (query) => {
+      const orders = query.state.data;
+      const confirmed = orders?.some(
+        (order) =>
+          order.paymentId === effectivePaymentId &&
+          order.status === "completed",
+      );
+      return confirmed ? false : 5000;
+    },
+  });
+
+  const ordersConfirmed = !!myOrders?.some(
+    (order) =>
+      order.paymentId === effectivePaymentId && order.status === "completed",
   );
 
   const paymentId = effectivePaymentId;
 
   const isPaymentSuccessful = isPispi
-    ? pispiConfirm?.success === true
+    ? pispiConfirm?.success === true || ordersConfirmed
     : paymentVerify?.data?.status === "success";
 
   const hasProcessedPayment = useRef(false);
@@ -101,6 +132,7 @@ export function PaymentSuccessContent({
     handleUpdateUserPhone,
     processPaymentSuccess,
     clearPaymentId,
+    ordersConfirmed,
   ]);
 
   return (
@@ -249,7 +281,21 @@ export function PaymentSuccessContent({
                     Le paiement a été refusé. Veuillez réessayer ou contacter
                     le support.
                   </p>
-                ) : null}
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => refetchPispiConfirm()}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Vérifier mon paiement
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Le paiement peut mettre quelques instants à apparaître.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </>
           )}

@@ -35,16 +35,30 @@ export function useProcessPaymentSuccess() {
  * a few seconds to become irrevocable).
  */
 export function useConfirmPispiPayment(txId: string | null) {
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["payment", "pispi", "confirm", txId],
-    queryFn: () =>
-      api.payments.confirmPispi({ txId: txId as string }) as Promise<{
-        success: boolean;
-        statut?: string;
-        orderIds?: string[];
-      }>,
+    queryFn: async () => {
+      try {
+        return (await api.payments.confirmPispi({
+          txId: txId as string,
+        })) as {
+          success: boolean;
+          statut?: string;
+          orderIds?: string[];
+        };
+      } catch (err) {
+        // Ne jamais tuer le polling : l'API SaaS peut être momentanément
+        // indisponible. On renvoie un statut neutre et on réessaie 5 s
+        // plus tard tant que la page de succès est ouverte.
+        console.warn(
+          "[PI-SPI] Confirmation momentanément indisponible, nouvel essai dans 5 s :",
+          err,
+        );
+        return { success: false, statut: "INDISPONIBLE" };
+      }
+    },
     enabled: !!txId,
-    retry: 2,
+    retry: false,
     refetchInterval: (query) => {
       const data = query.state.data;
       if (data?.success === true) return false;
@@ -54,5 +68,5 @@ export function useConfirmPispiPayment(txId: string | null) {
     },
   });
 
-  return { pispiConfirm: data, isLoading, isError, error };
+  return { pispiConfirm: data, isLoading, isError, error, refetch };
 }
