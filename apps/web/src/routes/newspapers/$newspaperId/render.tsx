@@ -7,10 +7,9 @@ import {
 } from "@tanstack/react-router";
 import { getSessionUser, useSession } from "@kioskfy/auth-client";
 import { Button } from "@kioskfy/ui";
-import { Loader2, Lock, BookOpen, ShoppingCart } from "lucide-react";
+import { Loader2, Lock, BookOpen } from "lucide-react";
 import { NewspaperPdfViewer } from "@/components/newspapers/newspaper-pdf-viewer";
 import { useHasPurchased } from "@/hooks/use-has-purchased.hook";
-import { useMyOrders } from "@/hooks/use-orders.hook";
 
 export const Route = createFileRoute("/newspapers/$newspaperId/render")({
   // Block access on client-side navigations when no session exists.
@@ -49,15 +48,6 @@ function RenderNewspaperPage() {
   const navigate = useNavigate();
   const { user, isLoading } = useSession();
   const { hasPurchased, isCheckingPurchase } = useHasPurchased(newspaperId);
-  const { data: myOrders } = useMyOrders();
-
-  // Commande non payée existante (en attente ou échouée) pour ce journal :
-  // on propose de la payer au lieu d'acheter une seconde fois.
-  const hasPendingOrder = !!myOrders?.some(
-    (order) =>
-      order.newspaperId === newspaperId &&
-      (order.status === "pending" || order.status === "failed"),
-  );
 
   // Covers hard page loads (SSR can't read the session cookie): redirect
   // once the session resolves on the client.
@@ -86,32 +76,18 @@ function RenderNewspaperPage() {
             </div>
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">
-              {hasPendingOrder
-                ? "Commande en attente de paiement"
-                : "Achat requis"}
-            </h1>
+            <h1 className="text-2xl font-bold">Achat requis</h1>
             <p className="text-muted-foreground">
-              {hasPendingOrder
-                ? "Ce journal n'est pas encore payé. Rendez-vous dans votre espace membre pour finaliser le paiement, puis revenez lire l'édition."
-                : "Ce journal n'est pas encore dans votre bibliothèque. Achetez l'édition pour la lire en illimité."}
+              Ce journal n&apos;est pas encore dans votre bibliothèque. Achetez
+              l&apos;édition pour la lire en illimité.
             </p>
           </div>
-          {hasPendingOrder ? (
-            <Button asChild size="lg" className="gap-2">
-              <Link to="/dashboard/achats">
-                <ShoppingCart className="h-4 w-4" />
-                Payer ma commande
-              </Link>
-            </Button>
-          ) : (
-            <Button asChild size="lg" className="gap-2">
-              <Link to="/newspapers/$newspaperId" params={{ newspaperId }}>
-                <BookOpen className="h-4 w-4" />
-                Acheter l'édition
-              </Link>
-            </Button>
-          )}
+          <Button asChild size="lg" className="gap-2">
+            <Link to="/newspapers/$newspaperId" params={{ newspaperId }}>
+              <BookOpen className="h-4 w-4" />
+              Acheter l'édition
+            </Link>
+          </Button>
         </div>
       </div>
     );

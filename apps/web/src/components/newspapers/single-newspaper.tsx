@@ -24,7 +24,6 @@ import {
   Heart,
   BookOpen,
   CheckCircle2,
-  Clock,
 } from "lucide-react";
 import { API_ORIGIN } from "@/lib/api";
 import { cartStore, useCartStore, type CartItem } from "@/lib/cart-store";
@@ -37,7 +36,6 @@ import {
   useToggleFavorite,
 } from "@/hooks/use-favorites.hook";
 import { useHasPurchased } from "@/hooks/use-has-purchased.hook";
-import { useMyOrders } from "@/hooks/use-orders.hook";
 import { NewspaperDetailSkeleton } from "./newspaper-detail-skeleton";
 import { RelatedNewspapers } from "./related-newspapers";
 import { CartSuccessModal } from "@/components/cart/cart-success-modal";
@@ -75,16 +73,7 @@ export const SingleNewspaper = ({ id }: SingleNewspaperProps) => {
   const items = useCartStore();
   const { isAuthenticated } = useSession();
   const { hasPurchased, isCheckingPurchase } = useHasPurchased(id);
-  const { data: myOrders } = useMyOrders();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-
-  // Commande non payée existante (en attente ou échouée) : on propose de
-  // la payer depuis l'espace membre au lieu de ré-ajouter au panier.
-  const hasPendingOrder = !!myOrders?.some(
-    (order) =>
-      order.newspaperId === id &&
-      (order.status === "pending" || order.status === "failed"),
-  );
 
   const inCart = newspaper
     ? items.some((item) => item.id === newspaper.id)
@@ -344,20 +333,6 @@ export const SingleNewspaper = ({ id }: SingleNewspaperProps) => {
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                   Cette édition est dans votre bibliothèque — lecture
                   illimitée
-                </p>
-              </div>
-            ) : hasPendingOrder ? (
-              <div className="space-y-3">
-                <Button asChild size="lg" className="w-full text-lg gap-2">
-                  <Link to="/dashboard/achats">
-                    <ShoppingCart className="h-5 w-5" />
-                    Acheter
-                  </Link>
-                </Button>
-                <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  Commande en attente de paiement — finalisez votre achat
-                  depuis votre espace membre.
                 </p>
               </div>
             ) : (
