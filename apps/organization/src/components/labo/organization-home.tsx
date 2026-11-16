@@ -7,6 +7,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  currencySymbol,
   Skeleton,
   Table,
   TableBody,
@@ -103,7 +104,7 @@ export function OrganizationHome() {
 
   if (!organization) return null;
 
-  const devise = balances?.currency ?? "XAF";
+  const devise = currencySymbol(balances?.currency);
 
   return (
     <div className="space-y-4">

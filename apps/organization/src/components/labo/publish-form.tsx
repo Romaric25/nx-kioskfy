@@ -383,7 +383,7 @@ export function PublishForm() {
             >
               {(field) => (
                 <Field data-invalid={!!field.state.meta.errors.length || undefined}>
-                  <FieldLabel htmlFor="publish-price">Prix (XAF)</FieldLabel>
+                  <FieldLabel htmlFor="publish-price">Prix (FCFA)</FieldLabel>
                   <Input
                     id="publish-price"
                     type="number"

@@ -8,6 +8,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  formatCurrency,
   Skeleton,
   Table,
   TableBody,
@@ -73,7 +74,7 @@ export function RecentOrders() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {parseFloat(order.price).toLocaleString("fr-FR")} XAF
+                    {formatCurrency(order.price)}
                   </TableCell>
                 </TableRow>
               ))}

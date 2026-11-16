@@ -5,7 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { AdminOrderResponse } from "@kioskfy/types";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent, Badge } from "@kioskfy/ui";
+import { Tabs, TabsList, TabsTrigger, TabsContent, Badge, formatCurrency } from "@kioskfy/ui";
 
 const STATUS_TABS = [
   { key: "completed", label: "Succès" },
@@ -38,7 +38,7 @@ const columns: ColumnDef<AdminOrderResponse>[] = [
   {
     accessorKey: "price",
     header: "Montant",
-    cell: ({ row }) => `${parseFloat(row.original.price).toLocaleString("fr-FR")} XAF`,
+    cell: ({ row }) => formatCurrency(row.original.price),
   },
   {
     id: "user",

@@ -182,7 +182,7 @@ export function NewspaperDialog({ onCreated }: NewspaperDialogProps) {
             >
               {(field) => (
                 <Field data-invalid={invalid(field)}>
-                  <FieldLabel htmlFor={field.name}>Prix (XAF)</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>Prix (FCFA)</FieldLabel>
                   <Input
                     id={field.name}
                     name={field.name}

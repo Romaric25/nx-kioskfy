@@ -151,6 +151,7 @@ export {
 export type { ChartConfig } from "./components/ui/chart";
 
 export { cn } from "./lib/utils";
+export { currencySymbol, formatCurrency } from "./lib/format-currency";
 export { useIsMobile } from "./hooks/use-mobile";
 
 export { NotFoundPage } from "./components/not-found";

@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  formatCurrency,
   Input,
   Select,
   SelectContent,
@@ -177,7 +178,7 @@ export function NewspapersList() {
       accessorKey: "price",
       header: "Prix",
       cell: ({ row }) =>
-        `${Number(row.getValue("price")).toLocaleString("fr-FR")} XAF`,
+        formatCurrency(Number(row.getValue("price"))),
     },
     {
       id: "actions",

@@ -19,6 +19,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  formatCurrency,
 } from "@kioskfy/ui";
 
 export const Route = createFileRoute("/admin/organizations")({ component: OrganizationsPage });
@@ -51,8 +52,8 @@ const baseColumns: ColumnDef<OrganizationItem>[] = [
   },
 ];
 
-function formatXaf(value: number): string {
-  return `${value.toLocaleString("fr-FR")} XAF`;
+function formatAmount(value: number): string {
+  return formatCurrency(value);
 }
 
 function BalanceDialog({
@@ -98,11 +99,11 @@ function BalanceDialog({
           <dl className="grid grid-cols-2 gap-4 text-sm">
             <div className="rounded-md border p-3">
               <dt className="text-muted-foreground">Montant organisation</dt>
-              <dd className="mt-1 text-base font-semibold">{formatXaf(balance.organizationAmount)}</dd>
+              <dd className="mt-1 text-base font-semibold">{formatAmount(balance.organizationAmount)}</dd>
             </div>
             <div className="rounded-md border p-3">
               <dt className="text-muted-foreground">Montant plateforme</dt>
-              <dd className="mt-1 text-base font-semibold">{formatXaf(balance.platformAmount)}</dd>
+              <dd className="mt-1 text-base font-semibold">{formatAmount(balance.platformAmount)}</dd>
             </div>
             <div className="rounded-md border p-3">
               <dt className="text-muted-foreground">Ventes</dt>
@@ -110,7 +111,7 @@ function BalanceDialog({
             </div>
             <div className="rounded-md border p-3">
               <dt className="text-muted-foreground">Retiré</dt>
-              <dd className="mt-1 text-base font-semibold">{formatXaf(balance.withdrawnAmount)}</dd>
+              <dd className="mt-1 text-base font-semibold">{formatAmount(balance.withdrawnAmount)}</dd>
             </div>
             <div className="col-span-2 rounded-md border p-3">
               <dt className="text-muted-foreground">Retraits</dt>

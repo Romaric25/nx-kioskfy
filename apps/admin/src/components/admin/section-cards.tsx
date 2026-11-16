@@ -15,7 +15,7 @@ export function SectionCards() {
         <CardHeader className="relative">
           <CardDescription>Revenu total</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            1 250 000 XAF
+            1 250 000 FCFA
           </CardTitle>
           <div className="absolute right-4 top-4">
             <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">

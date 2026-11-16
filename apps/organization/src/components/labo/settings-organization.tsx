@@ -11,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  currencySymbol,
   Dialog,
   DialogClose,
   DialogContent,
@@ -210,7 +211,7 @@ function SoldeCard({
         ) : (
           <div className="text-3xl font-bold">
             {(balance?.organizationAmount ?? 0).toLocaleString("fr-FR")}{" "}
-            {balance?.currency ?? "XAF"}
+            {currencySymbol(balance?.currency)}
           </div>
         )}
         <p className="mt-2 text-sm text-muted-foreground">

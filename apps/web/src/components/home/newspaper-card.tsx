@@ -1,6 +1,6 @@
 import { Image } from "@unpic/react";
 import { Link } from "@tanstack/react-router";
-import { Badge, Button } from "@kioskfy/ui";
+import { Badge, Button, formatCurrency } from "@kioskfy/ui";
 import { Calendar, Eye } from "lucide-react";
 import type { NewspaperItem } from "@kioskfy/types";
 
@@ -18,7 +18,7 @@ export function NewspaperCard({ newspaper, magazine = false }: NewspaperCardProp
     month: "short",
     year: "numeric",
   });
-  const price = `${parseFloat(newspaper.price).toLocaleString("fr-FR")} XAF`;
+  const price = formatCurrency(newspaper.price);
   const coverImage = newspaper.coverImage || "";
 
   const detailLink = magazine

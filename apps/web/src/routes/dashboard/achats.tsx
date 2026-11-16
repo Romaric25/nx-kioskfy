@@ -22,6 +22,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  formatCurrency,
   Input,
 } from "@kioskfy/ui";
 import { useMyOrders, type MyOrder } from "@/hooks/use-orders.hook";
@@ -262,7 +263,7 @@ function AchatsPage() {
                               </span>
                             )}
                             <span className="font-semibold text-foreground text-sm sm:text-xs mt-1 sm:mt-0">
-                              {order.price} XAF
+                              {formatCurrency(order.price)}
                             </span>
                           </div>
                         </div>
