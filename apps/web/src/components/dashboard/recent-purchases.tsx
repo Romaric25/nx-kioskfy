@@ -60,7 +60,9 @@ const STATUS_CONFIG: Record<
 export function RecentPurchases() {
   const { data: orders, isLoading } = useMyOrders();
 
-  const recentOrders = (orders ?? []).slice(0, 4);
+  const recentOrders = (orders ?? [])
+    .filter((order) => order.status === "completed")
+    .slice(0, 4);
 
   return (
     <Card>

@@ -70,7 +70,12 @@ function AchatsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  const orderList = orders ?? [];
+  // L'espace membre n'affiche que les achats payés : les commandes en
+  // attente ou échouées ne sont plus montrées (le paiement se fait
+  // directement sur la page de paiement du panier).
+  const orderList = (orders ?? []).filter(
+    (order) => order.status === "completed",
+  );
 
   const filteredOrders = useMemo(() => {
     if (!searchQuery.trim()) return orderList;

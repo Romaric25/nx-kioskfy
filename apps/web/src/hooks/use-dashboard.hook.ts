@@ -22,7 +22,7 @@ export function useDashboardStats() {
   // First 4 favorites for the preview grid
   const recentFavorites = favorites.slice(0, 4);
 
-  const orders = myOrders ?? [];
+  const orders = (myOrders ?? []).filter((order) => order.status === "completed");
   const totalPurchases = orders.length;
 
   // Total spent
