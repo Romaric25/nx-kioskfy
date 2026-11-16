@@ -23,9 +23,30 @@ export interface PispiCheckoutProps {
   linkOrdersToPayment: (orderIds: string[], paymentId: string) => Promise<void>;
   /** Appelée à chaque fermeture du modal du widget. */
   onClose: (result: PispiCheckoutCloseResult) => void;
+  /**
+   * Masque le logo PI-SPI du bouton de paiement (le bouton garde son
+   * texte « Payer avec PI-SPI »).
+   */
+  hideLogo?: boolean;
 }
 
+const BUTTON_SELECTOR = 'span[data-pispi-checkout="button"]';
 const MODAL_SELECTOR = 'div[data-pispi-checkout="modal"]';
+
+/**
+ * Masque le logo du bouton PI-SPI. Le widget ne propose pas d'option pour
+ * ça : son bouton est rendu dans un shadow DOM ouvert, on cache donc
+ * l'image directement (même approche que le préremplissage de l'alias).
+ */
+function hideButtonLogo(container: HTMLElement): void {
+  const host = container.querySelector<HTMLElement>(BUTTON_SELECTOR);
+  const logo = host?.shadowRoot?.querySelector<HTMLImageElement>(
+    'img[alt="PI-SPI"]',
+  );
+  if (logo) {
+    logo.style.display = "none";
+  }
+}
 
 /** Remplit le champ alias du modal PI-SPI (shadow DOM ouvert). */
 function prefillModalAlias(alias: string): void {
@@ -56,7 +77,10 @@ export function PispiCheckout({
   createOrders,
   linkOrdersToPayment,
   onClose,
+  hideLogo = false,
 }: PispiCheckoutProps) {
+  const hideLogoRef = useRef(hideLogo);
+  hideLogoRef.current = hideLogo;
   const containerRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   const createOrdersRef = useRef(createOrders);
@@ -126,6 +150,11 @@ export function PispiCheckout({
       getPaymentStatus: (txId) => getPispiPaymentStatus(txId),
       onClose: (result) => onCloseRef.current(result),
     });
+
+    // Masque le logo PI-SPI du bouton si demandé (shadow DOM ouvert).
+    if (hideLogoRef.current && containerRef.current) {
+      hideButtonLogo(containerRef.current);
+    }
 
     // Préremplit l'alias du client dès que le modal apparaît (le modal est
     // créé à l'ouverture, en shadow DOM ouvert attaché à document.body).

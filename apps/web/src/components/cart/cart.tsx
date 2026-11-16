@@ -248,6 +248,7 @@ export function Cart() {
                       updatePaymentId.mutateAsync({ orderIds, paymentId })
                     }
                     onClose={handlePispiClose}
+                    hideLogo
                   />
                 ) : (
                   <Button
