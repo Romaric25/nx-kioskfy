@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS = [
   { key: "organization_percentage", value: "75", label: "Part organisation (%)", group: "payments", type: "number", isPublic: false, description: "Part reversée à l'agence de presse sur chaque vente." },
   { key: "min_withdrawal_amount", value: "1000", label: "Retrait minimum (XAF)", group: "payments", type: "number", isPublic: false, description: "Montant minimum qu'une agence peut retirer." },
   { key: "currency", value: "XAF", label: "Devise", group: "payments", type: "string", isPublic: true, description: "Code de la devise utilisée sur la plateforme." },
+  { key: "marketplace_pispi_alias", value: "", label: "Alias PI-SPI de la marketplace", group: "payments", type: "string", isPublic: true, description: "Alias du compte PI-SPI (BCEAO) de la marketplace qui reçoit les paiements des clients — utilisé comme bénéficiaire (payeAlias) des demandes de paiement du checkout. Laissez vide pour laisser l'API SaaS résoudre l'alias depuis le numéro de compte configuré." },
 ];
 
 @Injectable()

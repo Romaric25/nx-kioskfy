@@ -7,6 +7,8 @@
  * SaaS sont publics (démo) — en production, protéger derrière un backend.
  */
 
+import { API_ORIGIN } from "@/lib/api";
+
 const isProd = import.meta.env?.PROD;
 
 /** Base URL de l'API SaaS PI-SPI (dev : http://localhost:3015/api). */
@@ -27,6 +29,43 @@ export const PISPI_ACCOUNT_NUMBER =
  */
 export const PISPI_BUSINESS_ALIAS: string | undefined =
   import.meta.env?.VITE_PISPI_BUSINESS_ALIAS || undefined;
+
+/**
+ * Alias PI-SPI de la marketplace (compte qui reçoit les paiements) —
+ * configuré dans les paramètres du site (admin kioskfy, groupe
+ * « Paiements & commissions », clé `marketplace_pispi_alias`). L'env
+ * `VITE_PISPI_BUSINESS_ALIAS` reste prioritaire (override de déploiement).
+ * Mis en cache après le premier chargement.
+ */
+let _marketplaceAliasPromise: Promise<string | null> | null = null;
+let _marketplaceAlias: string | null = null;
+
+async function getMarketplacePispiAlias(): Promise<string | null> {
+  if (_marketplaceAlias) return _marketplaceAlias;
+  if (!_marketplaceAliasPromise) {
+    _marketplaceAliasPromise = (async () => {
+      try {
+        const res = await fetch(`${API_ORIGIN}/api/settings`, {
+          credentials: "include",
+        });
+        if (!res.ok) return null;
+        const data = (await res.json()) as Record<
+          string,
+          { key?: string; value?: unknown }
+        >;
+        const brut = data["marketplace_pispi_alias"]?.value;
+        return typeof brut === "string" && brut.trim() !== ""
+          ? brut.trim()
+          : null;
+      } catch {
+        return null;
+      }
+    })();
+  }
+  const alias = await _marketplaceAliasPromise;
+  _marketplaceAlias = alias;
+  return alias;
+}
 
 export interface PispiDemandeResponse {
   txId: string;
@@ -90,13 +129,18 @@ export async function createPispiPaymentRequest(payload: {
   montant: number;
   motif?: string;
 }): Promise<PispiDemandeResponse> {
+  // Bénéficiaire (payeAlias) : env explicite > alias configuré dans les
+  // paramètres du site > résolution automatique par l'API SaaS (compte).
+  const payeAlias =
+    PISPI_BUSINESS_ALIAS ?? (await getMarketplacePispiAlias());
+
   const requestBody = {
     txId: payload.txId,
     confirmation: false,
     categorie: "500",
     payeurAlias: payload.payeurAlias,
     accountNumber: PISPI_ACCOUNT_NUMBER,
-    ...(PISPI_BUSINESS_ALIAS ? { payeAlias: PISPI_BUSINESS_ALIAS } : {}),
+    ...(payeAlias ? { payeAlias } : {}),
     montant: payload.montant,
     ...(payload.motif && payload.motif.length >= 2
       ? { motif: payload.motif }
