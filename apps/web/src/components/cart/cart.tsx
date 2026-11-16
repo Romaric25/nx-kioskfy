@@ -138,13 +138,12 @@ export function Cart() {
             <Card key={item.id} className="overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex flex-col sm:flex-row">
-                  <div className="relative w-full sm:w-32 aspect-3/4 sm:aspect-auto">
+                  <div className="relative w-24 shrink-0 self-center p-2 sm:w-32 sm:self-stretch sm:p-0 sm:aspect-auto aspect-3/4">
                     <Image
                       src={item.coverImage}
                       alt={item.issueNumber}
-                      width={128}
-                      height={176}
-                      className="object-cover m-2"
+                      layout="fullWidth"
+                      className="h-full w-full rounded-md object-cover"
                     />
                   </div>
                   <div className="p-4 sm:p-6 flex-1 flex flex-col justify-between">
