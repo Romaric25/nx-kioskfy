@@ -24,5 +24,8 @@ export function useMyOrders() {
     queryKey: ["myOrders"],
     queryFn: () => api.orders.getMy() as Promise<MyOrder[]>,
     retry: 1,
+    // Après un paiement, la page des achats doit refléter le nouveau
+    // statut des commandes dès qu'on y revient.
+    refetchOnMount: true,
   });
 }

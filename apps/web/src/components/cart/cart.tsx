@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Image } from "@unpic/react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
   Trash2,
   ShoppingCart,
   AlertCircle,
+  Loader2,
+  ClipboardList,
 } from "lucide-react";
 import {
   Button,
@@ -20,12 +22,10 @@ import {
 } from "@kioskfy/ui";
 import { useSession, initAuth } from "@kioskfy/auth-client";
 import type { BatchOrderInput } from "@kioskfy/types";
-import type { PispiCheckoutCloseResult } from "@pi-spi/checkout";
 import { api, API_ORIGIN } from "@/lib/api";
 import { cartStore, useCartStore } from "@/lib/cart-store";
 import { priceFormatter } from "@/lib/price-formatter";
 import { FrequencyContent } from "@/components/frequency-content";
-import { PispiCheckout } from "@/components/payment/pispi-checkout";
 
 // Initialize the auth client once (idempotent — the session promise is cached).
 if (typeof window !== "undefined") {
@@ -38,63 +38,38 @@ export function Cart() {
   const { isAuthenticated } = useSession();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Alias PI-SPI déjà utilisé par le client sur une commande payée :
-  // préremplit le champ alias du checkout (il reste modifiable).
-  const { data: payeurAliasData } = useQuery({
-    queryKey: ["myPayeurAlias"],
-    queryFn: () => api.orders.getMyPayeurAlias(),
-    enabled: isAuthenticated,
-    retry: 1,
-  });
-
   const createBatch = useMutation({
     mutationFn: (data: BatchOrderInput) => api.orders.createBatch(data),
   });
 
-  const updatePaymentId = useMutation({
-    mutationFn: ({
-      orderIds,
-      paymentId,
-    }: {
-      orderIds: string[];
-      paymentId: string;
-    }) => api.orders.updatePaymentId(orderIds, paymentId),
-  });
-
-  /** Crée les commandes pour le parcours PI-SPI. */
-  const createOrdersForPispi = async () => {
+  /**
+   * Nouveau parcours : la commande est créée ici (statut « En attente »),
+   * le panier est vidé, puis le client paie depuis son tableau de bord
+   * (la demande de paiement PI-SPI est faite à ce moment-là).
+   */
+  const handleOrder = async () => {
+    setErrorMessage(null);
     if (items.length === 0) {
-      throw new Error("Votre panier est vide");
-    }
-    const createdOrders = await createBatch.mutateAsync({
-      orders: items.map((item) => ({
-        newspaperId: item.id,
-        price: Number(item.price),
-      })),
-    });
-    if (!createdOrders?.length) {
-      throw new Error("Erreur lors de la création des commandes");
-    }
-    return { orderIds: createdOrders.map((order) => order.id) };
-  };
-
-  /** Fermeture du widget PI-SPI : succès, rejet ou abandon. */
-  const handlePispiClose = (result: PispiCheckoutCloseResult) => {
-    if (result.txId) {
-      // Dès qu'une demande a été créée, on laisse la page de succès décider :
-      // même en cas de timeout du widget, le paiement a pu être reçu
-      // (webhook) — la page confirme côté serveur et vide le panier.
-      navigate({
-        to: "/payment/success",
-        search: { paymentId: result.txId } as never,
-      });
+      setErrorMessage("Votre panier est vide");
       return;
     }
-    if (result.status === "rejected") {
-      setErrorMessage("Le paiement PI-SPI a été rejeté. Veuillez réessayer.");
-    } else if (result.status === "timeout") {
+    try {
+      const createdOrders = await createBatch.mutateAsync({
+        orders: items.map((item) => ({
+          newspaperId: item.id,
+          price: Number(item.price),
+        })),
+      });
+      if (!createdOrders?.length) {
+        throw new Error("Erreur lors de la création des commandes");
+      }
+      cartStore.clearCart();
+      navigate({ to: "/dashboard/achats" });
+    } catch (err) {
       setErrorMessage(
-        "Le paiement PI-SPI a expiré. Vérifiez vos notifications avant de réessayer.",
+        err instanceof Error
+          ? err.message
+          : "Erreur lors de la création de la commande",
       );
     }
   };
@@ -235,24 +210,24 @@ export function Cart() {
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
               <div className="flex w-full flex-col gap-2">
-                <p className="text-center text-xs text-muted-foreground">
-                  Payez en toute sécurité avec PI-SPI
-                </p>
                 {isAuthenticated ? (
-                  <PispiCheckout
-                    amount={Math.round(cartStore.total())}
-                    motif={`Achat de ${items.length} journal(aux) sur Kioskfy`}
-                    initialAlias={payeurAliasData?.alias ?? null}
-                    createOrders={createOrdersForPispi}
-                    linkOrdersToPayment={(orderIds, paymentId) =>
-                      updatePaymentId.mutateAsync({ orderIds, paymentId })
-                    }
-                    onClose={handlePispiClose}
-                  />
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    disabled={createBatch.isPending}
+                    onClick={handleOrder}
+                  >
+                    {createBatch.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ClipboardList data-icon="inline-start" />
+                    )}
+                    Commander
+                  </Button>
                 ) : (
                   <Button
-                    variant="outline"
                     className="w-full"
+                    size="lg"
                     onClick={() => {
                       navigate({
                         to: "/login",
@@ -260,9 +235,13 @@ export function Cart() {
                       });
                     }}
                   >
-                    Se connecter pour payer avec PI-SPI
+                    Se connecter pour commander
                   </Button>
                 )}
+                <p className="text-center text-xs text-muted-foreground">
+                  Vous paierez avec PI-SPI depuis votre tableau de bord,
+                  dans « Mes achats ».
+                </p>
               </div>
             </CardFooter>
           </Card>
