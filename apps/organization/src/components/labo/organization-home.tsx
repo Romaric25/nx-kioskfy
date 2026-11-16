@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
+  Badge,
   Card,
   CardContent,
   CardDescription,
@@ -14,14 +15,45 @@ import {
   TableHeader,
   TableRow,
 } from "@kioskfy/ui";
-import { DollarSign, ShoppingBag, Users } from "lucide-react";
+import { ShoppingBag, TrendingDown, Users, Wallet } from "lucide-react";
 import { useActiveOrganization } from "@/hooks/use-organizations.hook";
 import type {
+  OrganizationBalanceResponse,
   OrganizationCustomersResponse,
+  OrganizationOrder,
   OrganizationStatsResponse,
 } from "@kioskfy/types/accounting";
 
-/** Overview cards + recent sales + customers table for the selected agency. */
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function StatutBadge({ statut }: { statut: string }) {
+  const styles: Record<string, "secondary" | "default" | "destructive" | "outline"> = {
+    completed: "default",
+    pending: "secondary",
+    failed: "destructive",
+    refunded: "outline",
+  };
+  const labels: Record<string, string> = {
+    completed: "Payée",
+    pending: "En attente",
+    failed: "Échouée",
+    refunded: "Remboursée",
+  };
+  return (
+    <Badge variant={styles[statut] ?? "secondary"}>
+      {labels[statut] ?? statut}
+    </Badge>
+  );
+}
+
+/** Overview cards + all orders for the selected agency. */
 export function OrganizationHome() {
   const { organization } = useActiveOrganization();
 
@@ -32,6 +64,17 @@ export function OrganizationHome() {
         ? (api.orders.getOrganizationStats(
             organization.id,
           ) as Promise<OrganizationStatsResponse>)
+        : null,
+    enabled: !!organization,
+  });
+
+  const { data: balances } = useQuery({
+    queryKey: ["org-balances", organization?.id],
+    queryFn: () =>
+      organization
+        ? (api.organizations.getBalances(
+            organization.id,
+          ) as Promise<OrganizationBalanceResponse>)
         : null,
     enabled: !!organization,
   });
@@ -47,7 +90,20 @@ export function OrganizationHome() {
     enabled: !!organization,
   });
 
+  const { data: orders, isLoading: ordersLoading } = useQuery({
+    queryKey: ["org-orders", organization?.id],
+    queryFn: () =>
+      organization
+        ? (api.orders.getOrganizationOrders(
+            organization.id,
+          ) as Promise<OrganizationOrder[]>)
+        : null,
+    enabled: !!organization,
+  });
+
   if (!organization) return null;
+
+  const devise = balances?.currency ?? "XAF";
 
   return (
     <div className="space-y-4">
@@ -57,7 +113,7 @@ export function OrganizationHome() {
         </h2>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ventes</CardTitle>
@@ -73,15 +129,35 @@ export function OrganizationHome() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenus</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">
+              Revenus réels (après commission)
+            </CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {statsLoading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                {(stats?.totalOrgRevenue ?? 0).toLocaleString("fr-FR")} {devise}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Commission plateforme
+            </CardTitle>
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {statsLoading ? (
               <Skeleton className="h-8 w-20" />
             ) : (
               <div className="text-2xl font-bold">
-                {(stats?.totalRevenue ?? 0).toLocaleString("fr-FR")} XAF
+                {(stats?.totalPlatformRevenue ?? 0).toLocaleString("fr-FR")}{" "}
+                {devise}
               </div>
             )}
           </CardContent>
@@ -105,43 +181,76 @@ export function OrganizationHome() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Ventes récentes</CardTitle>
-          <CardDescription>Vos derniers clients</CardDescription>
+          <CardTitle>Commandes</CardTitle>
+          <CardDescription>
+            Toutes les ventes de vos journaux, avec la part qui vous revient
+            après commission
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {customersLoading ? (
+          {ordersLoading ? (
             <div className="space-y-2">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
-          ) : !customers?.customers?.length ? (
+          ) : !orders?.length ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Aucune vente pour le moment.
+              Aucune commande pour le moment.
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Journal</TableHead>
                   <TableHead>Client</TableHead>
-                  <TableHead>Commandes</TableHead>
-                  <TableHead className="text-right">Total dépensé</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
+                  <TableHead className="text-right">Commission</TableHead>
+                  <TableHead className="text-right">Part agence</TableHead>
+                  <TableHead>Statut</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customers.customers.slice(0, 6).map((customer) => (
-                  <TableRow key={customer.email}>
-                    <TableCell>
-                      <div className="font-medium">
-                        {customer.name || "Client"}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {customer.email}
-                      </div>
+                {orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="tabular-nums">
+                      {formatDateTime(order.createdAt)}
                     </TableCell>
-                    <TableCell>{customer.purchaseCount}</TableCell>
-                    <TableCell className="text-right">
-                      {"—"}
+                    <TableCell>
+                      <span className="font-medium">
+                        {order.newspaper?.issueNumber
+                          ? `Édition N° ${order.newspaper.issueNumber}`
+                          : "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="block">
+                        {order.payeurNom ?? order.user?.name ?? "Client"}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        {order.user?.email ?? "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {Number(order.price).toLocaleString("fr-FR")} {devise}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground tabular-nums">
+                      {order.revenueShare
+                        ? Number(
+                            order.revenueShare.platformAmount,
+                          ).toLocaleString("fr-FR")
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                      {order.revenueShare
+                        ? Number(
+                            order.revenueShare.organizationAmount,
+                          ).toLocaleString("fr-FR")
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <StatutBadge statut={order.status} />
                     </TableCell>
                   </TableRow>
                 ))}

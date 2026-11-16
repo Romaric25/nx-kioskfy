@@ -307,17 +307,10 @@ export function createAuth(db: Database) {
       disableIpTracking: false,
     },
     cookiePrefix: "kioskfy",
-    // Cross-subdomain cookies only in production. On localhost, cookies with
-    // Domain=kioskfy.com are rejected by the browser, which silently breaks
-    // the session (get-session returns null even after a successful sign-in).
-    ...(isProduction
-      ? {
-          crossSubDomainCookies: {
-            enabled: true,
-            domain: "kioskfy.com",
-          },
-        }
-      : {}),
+    // Pas de crossSubDomainCookies : les cookies de session restent
+    // host-only. Chaque sous-domaine (kioskfy.com, organization.kioskfy.com,
+    // admin.kioskfy.com...) a donc sa propre session et un login ne vaut
+    // que pour le sous-domaine sur lequel il a été effectué.
   },
   });
 }
