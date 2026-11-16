@@ -238,10 +238,6 @@ export function Cart() {
                     Se connecter pour commander
                   </Button>
                 )}
-                <p className="text-center text-xs text-muted-foreground">
-                  Vous paierez avec PI-SPI depuis votre tableau de bord,
-                  dans « Mes achats ».
-                </p>
               </div>
             </CardFooter>
           </Card>
