@@ -24,6 +24,19 @@ export class OrdersService {
   }
 
   async create(userId: string, newspaperId: string, price: number) {
+    // Blocage ferme : impossible de racheter un journal déjà payé.
+    const dejaAchete = await this.db.query.orders.findFirst({
+      where: and(
+        eq(orders.userId, userId),
+        eq(orders.newspaperId, newspaperId),
+        eq(orders.status as any, "completed"),
+      ),
+    });
+    if (dejaAchete) {
+      throw new BadRequestException(
+        "Vous avez déjà acheté ce journal — il est disponible dans votre bibliothèque",
+      );
+    }
     const id = randomUUID();
     await this.db.insert(orders).values({ id, userId, newspaperId, price: String(price), status: "pending" as any });
     return this.db.query.orders.findFirst({ where: eq(orders.id, id) });
