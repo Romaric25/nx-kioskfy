@@ -17,7 +17,7 @@
  */
 
 import { create } from "zustand";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ── Roles ─────────────────────────────────────────────────────────────────
 
@@ -406,6 +406,10 @@ function invalidateSession(): void {
 }
 
 async function fetchSession(): Promise<SessionUser | null> {
+  // isLoading à true pendant le fetch : les gardes de routes (dashboard,
+  // espace agence…) attendent la résolution au lieu de rediriger vers
+  // /login avant que la session n'ait eu le temps d'être revalidée.
+  useAuthStore.getState().setLoading(true);
   try {
     const data = await authFetch("/get-session");
     const user = data?.user ?? data?.data?.user ?? null;
@@ -459,12 +463,15 @@ export function useSession() {
 
   const isAuthenticated = !!user || !!getCookie("kioskfy.session_token");
 
-  // Auto-réhydratation : si la page vient d'être rechargée et que la
-  // session n'a pas encore été chargée (ou qu'un premier fetch a échoué),
-  // on la récupère à nouveau. Évite d'apparaître déconnecté après un
-  // rechargement alors que le cookie de session est valide.
+  // Auto-réhydratation (une fois par composant monté) : si la page vient
+  // d'être rechargée et que la session n'a pas encore été chargée (ou
+  // qu'un premier fetch a échoué), on la récupère à nouveau au lieu de
+  // laisser les gardes rediriger vers /login.
+  const triedRefresh = useRef(false);
   useEffect(() => {
+    if (triedRefresh.current) return;
     if (!user && !isLoading) {
+      triedRefresh.current = true;
       refreshSession();
     }
   }, [user, isLoading]);
