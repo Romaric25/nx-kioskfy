@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "@kioskfy/auth-client";
 import { api } from "@/lib/api";
 
 /** An order with its embedded newspaper (and organization). */
@@ -20,9 +21,11 @@ export interface MyOrder {
 
 /** Current user's orders (auth required). */
 export function useMyOrders() {
+  const { isAuthenticated } = useSession();
   return useQuery({
     queryKey: ["myOrders"],
     queryFn: () => api.orders.getMy() as Promise<MyOrder[]>,
+    enabled: isAuthenticated,
     retry: 1,
     // Après un paiement, la page des achats doit refléter le nouveau
     // statut des commandes dès qu'on y revient.
