@@ -5,6 +5,7 @@ import {
   timestamp,
   boolean,
   int,
+  decimal,
   index,
   uniqueIndex,
   varchar,
@@ -106,6 +107,12 @@ export const organizations = mysqlTable(
     metadata: text("metadata"),
     email: varchar("email", { length: 255 }).unique(),
     phone: varchar("phone", { length: 20 }).notNull().unique(),
+    // Alias PI-SPI (BCEAO) de l'agence : utilisé pour lui reverser ses gains
+    // (ex. alias SHID du compte de l'agence chez un participant PI-SPI).
+    pispiAlias: varchar("pispiAlias", { length: 255 }),
+    // Prix fixe du journal vendu par l'agence, hors commission kioskfy
+    // (montant net perçu par l'agence par exemplaire).
+    newspaperPrice: decimal("newspaperPrice", { precision: 10, scale: 2 }),
     country: varchar("country", { length: 100 }).notNull(),
     price: int("price"),
     suspended: boolean("suspended").default(false),

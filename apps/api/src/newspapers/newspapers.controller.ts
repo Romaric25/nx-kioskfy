@@ -1,11 +1,11 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { Session, AuthGuard, Roles, Public, type UserSession } from "@thallesp/nestjs-better-auth";
-import type { auth } from "../auth";
+import type { Auth } from "../auth";
 import { NewspapersService } from "./newspapers.service";
 import { CreateNewspaperDto, UpdateNewspaperDto, UpdateStatusDto, PaginationQuery } from "./dto/newspaper.dto";
 
-type AuthSession = UserSession<typeof auth>;
+type AuthSession = UserSession<Auth>;
 
 @ApiTags("Newspapers")
 @Controller("newspapers")

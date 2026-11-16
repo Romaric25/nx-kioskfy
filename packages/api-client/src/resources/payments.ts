@@ -76,4 +76,18 @@ export class PaymentsResource {
       buildInit("POST", opts, data),
     );
   }
+
+  /**
+   * Crée le règlement escrow chez l'API SaaS PI-SPI pour le txId donné.
+   * Le SaaS notifiera ensuite kioskfy par webhook au PAIEMENT_RECU.
+   */
+  async createPispiReglement(
+    data: { txId: string },
+    opts?: FetchOptions,
+  ): Promise<{ cree: boolean; raison?: string; dejaExistant?: boolean }> {
+    return this.fetch(
+      "/payments/pispi/reglement",
+      buildInit("POST", opts, data),
+    );
+  }
 }

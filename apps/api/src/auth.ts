@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { eq } from "drizzle-orm";
-import { db } from "./db";
+import type { Database } from "./db/database";
 import { users as userTable } from "./db/auth-schema";
 import { hashPassword, verifyPassword } from "./lib/argon2";
 import { APIError } from "better-auth/api";
@@ -23,7 +23,8 @@ import { expo } from "@better-auth/expo";
 
 const isProduction = process.env.NODE_ENV === "production";
 
-export const auth = betterAuth({
+export function createAuth(db: Database) {
+  return betterAuth({
   baseURL: isProduction ? process.env.APP_URL : "http://localhost:3000",
   basePath: "/api/auth",
   socialProviders: {
@@ -318,7 +319,10 @@ export const auth = betterAuth({
         }
       : {}),
   },
-});
+  });
+}
+
 // Type exports for use in other parts of the application
-export type Session = typeof auth.$Infer.Session;
-export type User = typeof auth.$Infer.Session.user;
+export type Auth = ReturnType<typeof createAuth>;
+export type Session = Auth["$Infer"]["Session"];
+export type User = Auth["$Infer"]["Session"]["user"];

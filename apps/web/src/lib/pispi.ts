@@ -1,22 +1,32 @@
 /**
  * Client PI-SPI (librairie @pi-spi/checkout + API SaaS PI-SPI).
  *
- * Le compte business du SaaS reçoit les paiements via l'alias configuré
- * (VITE_PISPI_BUSINESS_ALIAS). Les endpoints de l'API SaaS sont publics
- * (démo) — en production, protéger derrière un backend.
+ * Chaque application (kioskfy, admin, organisation…) a son propre compte
+ * PI-SPI (VITE_PISPI_ACCOUNT_NUMBER). L'API SaaS résout l'alias
+ * bénéficiaire à partir de ce numéro de compte. Les endpoints de l'API
+ * SaaS sont publics (démo) — en production, protéger derrière un backend.
  */
 
 const isProd = import.meta.env?.PROD;
 
-/** Base URL de l'API SaaS PI-SPI (ex: http://localhost:3000/api). */
+/** Base URL de l'API SaaS PI-SPI (dev : http://localhost:3015/api). */
 export const PISPI_API_URL =
   import.meta.env?.VITE_PISPI_API_URL ||
-  (isProd ? "https://api.pispi.kioskfy.com/api" : "http://localhost:3000/api");
+  (isProd ? "https://spi.romaric.co/api" : "http://localhost:3015/api");
 
-/** Alias du compte business du SaaS qui reçoit les paiements. */
-export const PISPI_BUSINESS_ALIAS =
-  import.meta.env?.VITE_PISPI_BUSINESS_ALIAS ||
-  "8350050d-6f94-481c-8caa-2b59b1a3664e";
+/**
+ * Numéro du compte PI-SPI qui reçoit les paiements de cette application.
+ * kioskfy : 76713101997799565192 (compte TRAN OUVERT chez le participant).
+ */
+export const PISPI_ACCOUNT_NUMBER =
+  import.meta.env?.VITE_PISPI_ACCOUNT_NUMBER || "76713101997799565192";
+
+/**
+ * Alias explicite du compte payé (optionnel). Si absent, l'API SaaS résout
+ * automatiquement le premier alias du compte PISPI_ACCOUNT_NUMBER.
+ */
+export const PISPI_BUSINESS_ALIAS: string | undefined =
+  import.meta.env?.VITE_PISPI_BUSINESS_ALIAS || undefined;
 
 export interface PispiDemandeResponse {
   txId: string;
@@ -85,7 +95,8 @@ export async function createPispiPaymentRequest(payload: {
     confirmation: false,
     categorie: "500",
     payeurAlias: payload.payeurAlias,
-    payeAlias: PISPI_BUSINESS_ALIAS,
+    accountNumber: PISPI_ACCOUNT_NUMBER,
+    ...(PISPI_BUSINESS_ALIAS ? { payeAlias: PISPI_BUSINESS_ALIAS } : {}),
     montant: payload.montant,
     ...(payload.motif && payload.motif.length >= 2
       ? { motif: payload.motif }

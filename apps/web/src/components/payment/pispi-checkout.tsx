@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { mountCheckout } from "@pi-spi/checkout";
 import type { PispiCheckoutCloseResult } from "@pi-spi/checkout";
 import { createPispiPaymentRequest, getPispiPaymentStatus } from "@/lib/pispi";
+import { api } from "@/lib/api";
 
 export interface PispiCheckoutProps {
   /** Montant à payer, en F CFA. */
@@ -74,6 +75,19 @@ export function PispiCheckout({
           montant: payload.montant,
           motif: payload.motif || motif,
         });
+
+        // 4. Créer le règlement escrow chez l'API SaaS : elle notifiera
+        // kioskfy par webhook (PAIEMENT_RECU) pour marquer les commandes
+        // payées sans dépendre du polling. Fire-and-forget : le checkout
+        // ne doit pas être bloqué si cette étape échoue.
+        void api.payments
+          .createPispiReglement({ txId })
+          .catch((error: unknown) => {
+            console.warn(
+              "[PI-SPI] Règlement SaaS non créé (fallback polling actif) :",
+              error,
+            );
+          });
 
         return {
           txId: demande.txId || txId,

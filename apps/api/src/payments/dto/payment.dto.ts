@@ -34,3 +34,12 @@ export class PispiConfirmDto {
   @IsString()
   txId!: string;
 }
+
+export class PispiReglementDto {
+  @ApiProperty({
+    example: "RTP-2026-0001",
+    description: "txId PI-SPI qui identifie les commandes liées",
+  })
+  @IsString()
+  txId!: string;
+}

@@ -1,11 +1,11 @@
 import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { Session, AuthGuard, Roles, type UserSession } from "@thallesp/nestjs-better-auth";
-import type { auth } from "../auth";
+import type { Auth } from "../auth";
 import { OrdersService } from "./orders.service";
 import { CreateOrderDto, BatchOrderDto, UpdatePaymentIdDto, PaginationQuery } from "./dto/order.dto";
 
-type AuthSession = UserSession<typeof auth>;
+type AuthSession = UserSession<Auth>;
 
 @ApiTags("Orders")
 @Controller("orders")

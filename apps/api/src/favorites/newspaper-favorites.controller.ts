@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Delete, Param, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { Session, AuthGuard, type UserSession } from "@thallesp/nestjs-better-auth";
-import type { auth } from "../auth";
+import type { Auth } from "../auth";
 import { FavoritesService } from "./favorites.service";
 
-type AuthSession = UserSession<typeof auth>;
+type AuthSession = UserSession<Auth>;
 
 @ApiTags("Favorites")
 @Controller("favorites")

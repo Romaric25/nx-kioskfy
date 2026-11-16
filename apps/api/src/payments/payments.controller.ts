@@ -6,6 +6,7 @@ import {
   InitializePaymentDto,
   PaymentSuccessDto,
   PispiConfirmDto,
+  PispiReglementDto,
 } from "./dto/payment.dto";
 
 @ApiTags("Payments")
@@ -42,5 +43,16 @@ export class PaymentsController {
   })
   confirmPispi(@Body() dto: PispiConfirmDto) {
     return this.paymentsService.confirmPispiPayment(dto.txId);
+  }
+
+  @Post("pispi/reglement")
+  @Public()
+  @ApiOperation({
+    summary:
+      "Crée le règlement escrow chez l'API SaaS PI-SPI pour le txId donné " +
+      "(le SaaS notifiera cette API par webhook au PAIEMENT_RECU)",
+  })
+  creerReglement(@Body() dto: PispiReglementDto) {
+    return this.paymentsService.creerReglementSaaS(dto.txId);
   }
 }

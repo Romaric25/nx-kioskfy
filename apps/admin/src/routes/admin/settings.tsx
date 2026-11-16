@@ -32,6 +32,15 @@ function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // Libellés français des groupes de paramètres (onglets).
+  const GROUP_LABELS: Record<string, string> = {
+    general: "Général",
+    seo: "SEO & Métadonnées",
+    social: "Réseaux sociaux",
+    maintenance: "Maintenance",
+    payments: "Paiements & commissions",
+  };
+
   const form = useForm({
     defaultValues: { values: {} as Record<string, unknown> },
     onSubmit: async ({ value }) => {
@@ -91,6 +100,7 @@ function SettingsPage() {
   }
   const groupKeys = Object.keys(groups);
   const hasSettings = groupKeys.length > 0;
+  const activeLabel = GROUP_LABELS[activeTab] ?? activeTab;
 
   if (loading) {
     return (
@@ -158,8 +168,8 @@ function SettingsPage() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 {groupKeys.map((group) => (
-                  <TabsTrigger key={group} value={group} className="capitalize">
-                    {group}
+                  <TabsTrigger key={group} value={group}>
+                    {GROUP_LABELS[group] ?? group}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -167,8 +177,8 @@ function SettingsPage() {
               <TabsContent value={activeTab} className="mt-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="capitalize">{activeTab}</CardTitle>
-                    <CardDescription>Configuration des paramètres {activeTab}.</CardDescription>
+                    <CardTitle>{activeLabel}</CardTitle>
+                    <CardDescription>Configuration des paramètres du site.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <FieldGroup>
@@ -200,6 +210,7 @@ function SettingsPage() {
                               </FieldLabel>
                               <Input
                                 id={setting.key}
+                                type={setting.type === "number" ? "number" : "text"}
                                 value={String(valuesField.state.value[setting.key] ?? "")}
                                 onChange={(e) => {
                                   valuesField.handleChange({

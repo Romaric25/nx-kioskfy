@@ -131,6 +131,10 @@ export interface OrganizationItem {
   description: string;
   price?: number | null;
   suspended?: boolean;
+  /** Alias PI-SPI (BCEAO) pour recevoir les gains de l'agence. */
+  pispiAlias?: string | null;
+  /** Prix fixe du journal, hors commission kioskfy (montant net par exemplaire). */
+  newspaperPrice?: number | null;
   metadata?: Record<string, unknown> | string | null;
   logoUpload?: {
     id: number;
@@ -165,6 +169,10 @@ export interface CreateOrganizationInput {
   price?: number;
   logo?: string | null;
   logoUploadId?: number;
+  /** Alias PI-SPI (BCEAO) pour recevoir les gains de l'agence. */
+  pispiAlias?: string | null;
+  /** Prix fixe du journal, hors commission kioskfy (montant net par exemplaire). */
+  newspaperPrice?: number | null;
   metadata?: string | null;
 }
 
@@ -177,8 +185,13 @@ export interface UpdateOrganizationInput {
   description?: string;
   price?: number;
   metadata?: string;
+  logo?: string | null;
   logoFile?: File;
   logoUploadId?: number;
+  /** Alias PI-SPI (BCEAO) pour recevoir les gains de l'agence. */
+  pispiAlias?: string | null;
+  /** Prix fixe du journal, hors commission kioskfy (montant net par exemplaire). */
+  newspaperPrice?: number | null;
 }
 
 // ── Withdrawal ───────────────────────────────────────────────────────────

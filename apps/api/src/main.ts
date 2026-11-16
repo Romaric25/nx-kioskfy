@@ -84,8 +84,8 @@ async function bootstrap() {
 
   const port = configService.get<number>('port', 3000);
   await app.listen(port);
-  Logger.log(`🚀 API : ${serverUrl}:${port}/${globalPrefix}`);
-  Logger.log(`📖 Docs : ${serverUrl}:${port}/docs`);
+  Logger.log(`🚀 API : http://localhost:${port}/${globalPrefix}`);
+  Logger.log(`📖 Docs : http://localhost:${port}/docs`);
 }
 
 bootstrap();

@@ -109,10 +109,11 @@ export function PublishForm() {
     },
   });
 
-  // Prefill the price with the organization's configured price.
+  // Préremplit le prix avec le prix fixe du journal de l'agence
+  // (hors commission), configuré dans les paramètres.
   useEffect(() => {
-    if (organization) {
-      form.setFieldValue("price", 0);
+    if (organization?.newspaperPrice != null) {
+      form.setFieldValue("price", organization.newspaperPrice);
     }
   }, [organization, form]);
 
@@ -392,6 +393,10 @@ export function PublishForm() {
                     onChange={(e) => field.handleChange(Number(e.target.value))}
                     onBlur={field.handleBlur}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Prérempli avec le prix fixe du journal de votre agence
+                    (hors commission kioskfy), modifiable pour cette édition.
+                  </p>
                   <FieldError
                     errors={field.state.meta.errors.map((message) => ({ message }))}
                   />

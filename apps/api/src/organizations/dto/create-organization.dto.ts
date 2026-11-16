@@ -53,10 +53,28 @@ export class CreateOrganizationDto {
   @IsNumber()
   logoUploadId?: number;
 
+  @ApiPropertyOptional({
+    description:
+      "Alias PI-SPI (BCEAO) de l'agence, ex. alias SHID du compte qui reçoit les gains",
+    example: "8350050d-6f94-481c-8caa-2b59b1a3664e",
+  })
+  @IsOptional()
+  @IsString()
+  pispiAlias?: string | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
   price?: number;
+
+  @ApiPropertyOptional({
+    description:
+      "Prix fixe du journal, hors commission kioskfy (montant net par exemplaire)",
+    example: 250,
+  })
+  @IsOptional()
+  @IsNumber()
+  newspaperPrice?: number;
 
   @ApiPropertyOptional({ description: "Métadonnées JSON (string)" })
   @IsOptional()

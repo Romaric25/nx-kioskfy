@@ -39,12 +39,12 @@ export class SettingsResource {
     return this.fetch("/settings", buildInit("GET", opts));
   }
 
-  /** Update site settings. */
+  /** Update site settings (the API expects the `{ settings: {...} }` envelope). */
   async update(
     data: Record<string, unknown>,
     opts?: FetchOptions,
   ): Promise<void> {
-    return this.fetch("/settings", buildInit("PUT", opts, data));
+    return this.fetch("/settings", buildInit("PUT", opts, { settings: data }));
   }
 
   /** Seed default settings. */

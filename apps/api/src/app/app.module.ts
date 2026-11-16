@@ -3,10 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { WorkflowModule } from '@workflow/nest';
 import { ConfigModule } from '@nestjs/config';
+import { getDrizzleToken } from '@nestjs/drizzle';
 import configuration from '../config/configuration';
 import { DrizzleModule } from '../db';
+import type { Database } from '../db';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
-import { auth } from '../auth';
+import { createAuth } from '../auth';
 
 import { ImageProcessorModule } from '../image-processor/image-processor.module';
 import { AdminModule } from '../admin/admin.module';
@@ -22,6 +24,7 @@ import { NewspapersModule } from '../newspapers/newspapers.module';
 import { CategoriesModule } from '../categories/categories.module';
 import { CountriesModule } from '../countries/countries.module';
 import { FavoritesModule } from '../favorites/favorites.module';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -45,17 +48,24 @@ import { FavoritesModule } from '../favorites/favorites.module';
     UploadsModule,
     UsersModule,
     WithdrawalsModule,
+    WebhooksModule,
     WorkflowModule.forRoot({
       moduleType: 'commonjs',
       distDir: 'dist',
     }),
-    AuthModule.forRoot({
-      auth,
-      bodyParser: {
-        json: { limit: '2mb' },
-        urlencoded: { limit: '2mb', extended: true },
-        rawBody: true,
-      },
+    AuthModule.forRootAsync({
+      // La factory s'exécute après l'instanciation de la base (ConfigModule
+      // puis DrizzleModule) : better-auth partage donc la même instance
+      // Drizzle que le reste de l'application.
+      inject: [getDrizzleToken()],
+      useFactory: (db: Database) => ({
+        auth: createAuth(db),
+        bodyParser: {
+          json: { limit: '2mb' },
+          urlencoded: { limit: '2mb', extended: true },
+          rawBody: true,
+        },
+      }),
     }),
   ],
   controllers: [AppController],

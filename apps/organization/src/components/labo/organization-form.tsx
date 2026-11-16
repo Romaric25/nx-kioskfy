@@ -43,6 +43,8 @@ interface OrganizationFormValues {
   address: string;
   phone: string;
   description: string;
+  pispiAlias: string;
+  newspaperPrice: string;
   logoFile: File | null;
 }
 
@@ -69,6 +71,8 @@ export function OrganizationForm() {
       address: "",
       phone: "",
       description: "",
+      pispiAlias: "",
+      newspaperPrice: "",
       logoFile: null,
     } as OrganizationFormValues,
     onSubmit: async ({ value }) => {
@@ -110,6 +114,11 @@ export function OrganizationForm() {
           country: value.country,
           address: value.address,
           description: value.description,
+          pispiAlias: value.pispiAlias.trim() || null,
+          newspaperPrice:
+            value.newspaperPrice.trim() === ""
+              ? null
+              : Number(value.newspaperPrice),
           logo,
           logoUploadId,
           metadata: JSON.stringify({
@@ -383,6 +392,54 @@ export function OrganizationForm() {
                     <FieldError
                       errors={field.state.meta.errors.map((message) => ({ message }))}
                     />
+                  </Field>
+                )}
+              </form.Field>
+
+              <form.Field name="pispiAlias">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="org-pispi-alias">
+                      Alias PI-SPI (BCEAO)
+                    </FieldLabel>
+                    <Input
+                      id="org-pispi-alias"
+                      placeholder="ex. 8350050d-6f94-481c-8caa-2b59b1a3664e"
+                      disabled={isSubmitting}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Alias SHID de votre compte PI-SPI : c'est vers ce compte
+                      que vos gains seront reversés. Vous pourrez le modifier
+                      plus tard dans les paramètres.
+                    </p>
+                  </Field>
+                )}
+              </form.Field>
+
+              <form.Field name="newspaperPrice">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="org-newspaper-price">
+                      Prix fixe du journal (sans commission)
+                    </FieldLabel>
+                    <Input
+                      id="org-newspaper-price"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="ex. 250"
+                      disabled={isSubmitting}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Montant net perçu par votre agence par exemplaire vendu,
+                      hors commission kioskfy.
+                    </p>
                   </Field>
                 )}
               </form.Field>

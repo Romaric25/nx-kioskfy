@@ -1,13 +1,17 @@
 import { Injectable, Inject, BadRequestException, NotFoundException } from "@nestjs/common";
 import { DRIZZLE } from "../db";
 import { withdrawals, organizationBalances } from "../db/app-schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Database } from "../db";
 import type { CreateWithdrawalDto } from "./dto/withdrawal.dto";
+import { OrganizationsService } from "../organizations/organizations.service";
 
 @Injectable()
 export class WithdrawalsService {
-  constructor(@Inject(DRIZZLE) private db: Database) {}
+  constructor(
+    @Inject(DRIZZLE) private db: Database,
+    private readonly organizations: OrganizationsService,
+  ) {}
 
   async create(dto: CreateWithdrawalDto) {
     const balance = await this.db.query.organizationBalances.findFirst({
@@ -29,11 +33,8 @@ export class WithdrawalsService {
       userId: dto.userId || null,
     } as any);
 
-    await this.db.update(organizationBalances).set({
-      organizationAmount: sql`${organizationBalances.organizationAmount} - ${dto.amount.toFixed(2)}`,
-      withdrawnAmount: sql`${organizationBalances.withdrawnAmount} + ${dto.amount.toFixed(2)}`,
-      totalWithdrawals: sql`${organizationBalances.totalWithdrawals} + 1`,
-    }).where(eq(organizationBalances.organizationId, dto.organizationId));
+    // Débit du solde : logique centralisée dans OrganizationsService.
+    await this.organizations.recordWithdrawal(dto.organizationId, dto.amount);
 
     return this.db.query.withdrawals.findFirst({ where: eq(withdrawals.id, result[0].insertId) });
   }
@@ -66,12 +67,8 @@ export class WithdrawalsService {
 
     await this.db.update(withdrawals).set({ status: "cancelled" as any, notes: reason || w.notes }).where(eq(withdrawals.id, id));
 
-    // Restaurer le solde
-    await this.db.update(organizationBalances).set({
-      organizationAmount: sql`${organizationBalances.organizationAmount} + ${w.amount}`,
-      withdrawnAmount: sql`${organizationBalances.withdrawnAmount} - ${w.amount}`,
-      totalWithdrawals: sql`${organizationBalances.totalWithdrawals} - 1`,
-    }).where(eq(organizationBalances.organizationId, w.organizationId));
+    // Restauration du solde : logique centralisée dans OrganizationsService.
+    await this.organizations.annulerRetrait(w.organizationId, Number(w.amount));
 
     return this.getById(id);
   }

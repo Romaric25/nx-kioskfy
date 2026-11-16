@@ -6,13 +6,20 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { DRIZZLE } from "../db";
-import { organizationBalances, revenueShares } from "../db/app-schema";
+import {
+  organizationBalances,
+  revenueShares,
+  newspapers,
+  withdrawals,
+  siteSettings,
+} from "../db/app-schema";
 import { members, organizations, users } from "../db/auth-schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import type { Database } from "../db";
 import type { OrganizationItem } from "@kioskfy/types";
 import type { CreateOrganizationDto } from "./dto/create-organization.dto";
+import type { UpdateOrganizationDto } from "./dto/update-organization.dto";
 
 export interface OrganizationBalanceResponse {
   id: number;
@@ -67,6 +74,26 @@ export class OrganizationsService {
     return rows.map((org) => this.mapOrganization(org));
   }
 
+  /** Détail d'une organisation pour l'un de ses membres. */
+  async getById(userId: string, organizationId: string): Promise<OrganizationItem> {
+    const membership = await this.db.query.members.findFirst({
+      where: and(
+        eq(members.organizationId, organizationId),
+        eq(members.userId, userId),
+      ),
+    });
+    if (!membership) {
+      throw new ForbiddenException("Vous n'êtes pas membre de cette organisation");
+    }
+
+    const org = await this.db.query.organizations.findFirst({
+      where: eq(organizations.id, organizationId),
+    });
+    if (!org) throw new NotFoundException("Organisation non trouvée");
+
+    return this.mapOrganization(org);
+  }
+
   /**
    * Create a press agency for the current user (mirrors Better Auth's
    * `allowUserToCreateOrganization` rule: active `agency` users only) and
@@ -99,6 +126,10 @@ export class OrganizationsService {
           address: dto.address,
           description: dto.description,
           price: dto.price ?? null,
+          pispiAlias: dto.pispiAlias ?? null,
+          newspaperPrice: dto.newspaperPrice
+            ? String(dto.newspaperPrice)
+            : null,
           metadata: dto.metadata ?? null,
           suspended: false,
         });
@@ -110,11 +141,16 @@ export class OrganizationsService {
           createdAt: new Date(),
         });
       });
-    } catch {
-      // Slug, email ou téléphone déjà utilisés (contraintes d'unicité).
-      throw new ConflictException(
-        "Une organisation avec ce nom, cet email ou ce téléphone existe déjà",
-      );
+    } catch (error) {
+      // Seul un vrai doublon (contrainte d'unicité MySQL ER_DUP_ENTRY)
+      // doit être converti en 409 — les autres erreurs remontent telles quelles
+      // (ex. colonne manquante, connexion…).
+      if ((error as { code?: string })?.code === "ER_DUP_ENTRY") {
+        throw new ConflictException(
+          "Une organisation avec ce nom, cet email ou ce téléphone existe déjà",
+        );
+      }
+      throw error;
     }
 
     const org = await this.db.query.organizations.findFirst({
@@ -123,6 +159,127 @@ export class OrganizationsService {
     if (!org) throw new NotFoundException("Impossible de créer l'organisation");
 
     return this.mapOrganization(org);
+  }
+
+  /**
+   * Modify an agency (owner only). Seuls les champs fournis sont mis à
+   * jour ; le slug n'est pas modifié (stabilité des URL publiques).
+   */
+  async update(
+    userId: string,
+    organizationId: string,
+    dto: UpdateOrganizationDto,
+  ): Promise<OrganizationItem> {
+    await this.assertOwner(userId, organizationId);
+
+    const updates: Record<string, unknown> = {};
+    if (dto.name !== undefined) updates.name = dto.name;
+    if (dto.email !== undefined) updates.email = dto.email;
+    if (dto.phone !== undefined) updates.phone = dto.phone;
+    if (dto.country !== undefined) updates.country = dto.country;
+    if (dto.address !== undefined) updates.address = dto.address;
+    if (dto.description !== undefined) updates.description = dto.description;
+    if (dto.price !== undefined) updates.price = dto.price;
+    if (dto.logo !== undefined) updates.logo = dto.logo;
+    if (dto.logoUploadId !== undefined) updates.logoUploadId = dto.logoUploadId;
+    if (dto.pispiAlias !== undefined) updates.pispiAlias = dto.pispiAlias;
+    if (dto.newspaperPrice !== undefined) {
+      updates.newspaperPrice =
+        dto.newspaperPrice === null ? null : String(dto.newspaperPrice);
+    }
+    if (dto.metadata !== undefined) updates.metadata = dto.metadata;
+
+    if (Object.keys(updates).length === 0) {
+      const unchanged = await this.db.query.organizations.findFirst({
+        where: eq(organizations.id, organizationId),
+      });
+      if (!unchanged) throw new NotFoundException("Organisation non trouvée");
+      return this.mapOrganization(unchanged);
+    }
+
+    try {
+      await this.db
+        .update(organizations)
+        .set(updates)
+        .where(eq(organizations.id, organizationId));
+    } catch (error) {
+      // Seul un vrai doublon (contrainte d'unicité MySQL ER_DUP_ENTRY)
+      // doit être converti en 409 — les autres erreurs remontent telles quelles.
+      if ((error as { code?: string })?.code === "ER_DUP_ENTRY") {
+        throw new ConflictException(
+          "Une organisation avec cet email ou ce téléphone existe déjà",
+        );
+      }
+      throw error;
+    }
+
+    const org = await this.db.query.organizations.findFirst({
+      where: eq(organizations.id, organizationId),
+    });
+    if (!org) throw new NotFoundException("Organisation non trouvée");
+
+    return this.mapOrganization(org);
+  }
+
+  /**
+   * Delete an agency (owner only). Refusée tant que l'agence possède des
+   * journaux ou des demandes de retrait (intégrité référentielle) ; les
+   * soldes et parts de revenus sont nettoyés dans la même transaction.
+   */
+  async remove(userId: string, organizationId: string): Promise<void> {
+    await this.assertOwner(userId, organizationId);
+
+    const papers = await this.db
+      .select({ id: newspapers.id })
+      .from(newspapers)
+      .where(eq(newspapers.organizationId, organizationId))
+      .limit(1);
+    if (papers.length > 0) {
+      throw new ConflictException(
+        "Supprimez d'abord les journaux de cette agence",
+      );
+    }
+
+    const retraits = await this.db
+      .select({ id: withdrawals.id })
+      .from(withdrawals)
+      .where(eq(withdrawals.organizationId, organizationId))
+      .limit(1);
+    if (retraits.length > 0) {
+      throw new ConflictException(
+        "Impossible de supprimer : l'agence a des demandes de retrait en historique",
+      );
+    }
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .delete(revenueShares)
+        .where(eq(revenueShares.organizationId, organizationId));
+      await tx
+        .delete(organizationBalances)
+        .where(eq(organizationBalances.organizationId, organizationId));
+      await tx
+        .delete(members)
+        .where(eq(members.organizationId, organizationId));
+      await tx
+        .delete(organizations)
+        .where(eq(organizations.id, organizationId));
+    });
+  }
+
+  /** Vérifie que l'utilisateur est le propriétaire (role `owner`) de l'agence. */
+  private async assertOwner(userId: string, organizationId: string): Promise<void> {
+    const membership = await this.db.query.members.findFirst({
+      where: and(
+        eq(members.organizationId, organizationId),
+        eq(members.userId, userId),
+      ),
+    });
+    if (!membership || membership.role !== "owner") {
+      throw new ForbiddenException(
+        "Seul le propriétaire de l'agence peut effectuer cette action",
+      );
+    }
   }
 
   /** Slugify the organization name and ensure uniqueness. */
@@ -161,6 +318,11 @@ export class OrganizationsService {
       description: org.description,
       price: org.price,
       suspended: org.suspended ?? false,
+      pispiAlias: org.pispiAlias ?? null,
+      newspaperPrice:
+        org.newspaperPrice === null || org.newspaperPrice === undefined
+          ? null
+          : Number(org.newspaperPrice),
       metadata: org.metadata,
     };
   }
@@ -168,6 +330,7 @@ export class OrganizationsService {
   // ── Balances ──────────────────────────────────────────────────────────
 
   async getOrCreateBalance(organizationId: string): Promise<OrganizationBalanceResponse> {
+    const currency = await this.devise();
     let balance = await this.db.query.organizationBalances.findFirst({
       where: eq(organizationBalances.organizationId, organizationId),
     });
@@ -180,7 +343,7 @@ export class OrganizationsService {
         totalSales: 0,
         totalWithdrawals: 0,
         withdrawnAmount: "0.00",
-        currency: "XAF",
+        currency,
       });
 
       balance = await this.db.query.organizationBalances.findFirst({
@@ -204,8 +367,9 @@ export class OrganizationsService {
     organizationId: string,
     organizationAmount: number,
     platformAmount: number,
-    currency = "XAF",
+    currency?: string,
   ): Promise<void> {
+    const devise = currency ?? (await this.devise());
     const result = await this.db
       .update(organizationBalances)
       .set({
@@ -223,7 +387,7 @@ export class OrganizationsService {
         totalSales: 1,
         totalWithdrawals: 0,
         withdrawnAmount: "0.00",
-        currency,
+        currency: devise,
       });
     }
   }
@@ -235,6 +399,18 @@ export class OrganizationsService {
         organizationAmount: sql`${organizationBalances.organizationAmount} - ${amount.toFixed(2)}`,
         withdrawnAmount: sql`${organizationBalances.withdrawnAmount} + ${amount.toFixed(2)}`,
         totalWithdrawals: sql`${organizationBalances.totalWithdrawals} + 1`,
+      })
+      .where(eq(organizationBalances.organizationId, organizationId));
+  }
+
+  /** Inverse de `recordWithdrawal` : restaure le solde d'un retrait annulé. */
+  async annulerRetrait(organizationId: string, amount: number): Promise<void> {
+    await this.db
+      .update(organizationBalances)
+      .set({
+        organizationAmount: sql`${organizationBalances.organizationAmount} + ${amount.toFixed(2)}`,
+        withdrawnAmount: sql`${organizationBalances.withdrawnAmount} - ${amount.toFixed(2)}`,
+        totalWithdrawals: sql`${organizationBalances.totalWithdrawals} - 1`,
       })
       .where(eq(organizationBalances.organizationId, organizationId));
   }
@@ -300,12 +476,23 @@ export class OrganizationsService {
         totalSales: sales,
         totalWithdrawals: withdrawals,
         withdrawnAmount: totalWithdrawn.toFixed(2),
-        currency: "XAF",
+        currency: await this.devise(),
       });
     }
   }
 
   // ── Format ────────────────────────────────────────────────────────────
+
+  /** Devise du site, configurée dans les paramètres (fallback XAF). */
+  private async devise(): Promise<string> {
+    const [setting] = await this.db
+      .select({ value: siteSettings.value })
+      .from(siteSettings)
+      .where(eq(siteSettings.key, "currency"));
+    return setting?.value && setting.value.trim() !== ""
+      ? setting.value.trim()
+      : "XAF";
+  }
 
   private formatBalance(b: any): OrganizationBalanceResponse {
     return {
