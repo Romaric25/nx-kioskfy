@@ -249,6 +249,7 @@ export function Cart() {
                     }
                     onClose={handlePispiClose}
                     hideLogo
+                    buttonLabel="Payer maintenant"
                   />
                 ) : (
                   <Button

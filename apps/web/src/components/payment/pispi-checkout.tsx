@@ -28,6 +28,11 @@ export interface PispiCheckoutProps {
    * texte « Payer avec PI-SPI »).
    */
   hideLogo?: boolean;
+  /**
+   * Texte du bouton de paiement (remplace le libellé par défaut du
+   * widget, ex. « Payer avec PI-SPI »).
+   */
+  buttonLabel?: string;
 }
 
 const BUTTON_SELECTOR = 'span[data-pispi-checkout="button"]';
@@ -45,6 +50,21 @@ function hideButtonLogo(container: HTMLElement): void {
   );
   if (logo) {
     logo.style.display = "none";
+  }
+}
+
+/**
+ * Remplace le libellé du bouton PI-SPI (le widget ne permet pas de
+ * personnaliser son texte) : le label est le premier `span` du bouton,
+ * accessible via le shadow DOM ouvert.
+ */
+function setButtonLabel(container: HTMLElement, label: string): void {
+  const host = container.querySelector<HTMLElement>(BUTTON_SELECTOR);
+  const span = host?.shadowRoot?.querySelector<HTMLSpanElement>(
+    "button span",
+  );
+  if (span) {
+    span.textContent = label;
   }
 }
 
@@ -78,9 +98,12 @@ export function PispiCheckout({
   linkOrdersToPayment,
   onClose,
   hideLogo = false,
+  buttonLabel,
 }: PispiCheckoutProps) {
   const hideLogoRef = useRef(hideLogo);
   hideLogoRef.current = hideLogo;
+  const buttonLabelRef = useRef(buttonLabel);
+  buttonLabelRef.current = buttonLabel;
   const containerRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   const createOrdersRef = useRef(createOrders);
@@ -154,6 +177,11 @@ export function PispiCheckout({
     // Masque le logo PI-SPI du bouton si demandé (shadow DOM ouvert).
     if (hideLogoRef.current && containerRef.current) {
       hideButtonLogo(containerRef.current);
+    }
+
+    // Personnalise le libellé du bouton si demandé.
+    if (buttonLabelRef.current && containerRef.current) {
+      setButtonLabel(containerRef.current, buttonLabelRef.current);
     }
 
     // Préremplit l'alias du client dès que le modal apparaît (le modal est
