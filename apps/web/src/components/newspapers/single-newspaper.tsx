@@ -342,21 +342,22 @@ export const SingleNewspaper = ({ id }: SingleNewspaperProps) => {
                 </Button>
                 <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  Cette édition fait partie de vos achats
+                  Cette édition est dans votre bibliothèque — lecture
+                  illimitée
                 </p>
               </div>
             ) : hasPendingOrder ? (
               <div className="space-y-3">
-                <Button asChild size="lg" variant="outline" className="w-full text-lg gap-2">
+                <Button asChild size="lg" className="w-full text-lg gap-2">
                   <Link to="/dashboard/achats">
                     <ShoppingCart className="h-5 w-5" />
-                    Payer ma commande en attente
+                    Acheter
                   </Link>
                 </Button>
                 <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  Ce journal est déjà dans votre panier de commandes —
-                  payez-le depuis votre espace membre.
+                  Commande en attente de paiement — finalisez votre achat
+                  depuis votre espace membre.
                 </p>
               </div>
             ) : (
