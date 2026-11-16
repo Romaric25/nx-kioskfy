@@ -3,6 +3,7 @@ import { useDashboardStats } from "@/hooks/use-dashboard.hook";
 import { DashboardWelcome } from "@/components/dashboard/dashboard-welcome";
 import { DashboardStats } from "@/components/dashboard/dashboard-stats";
 import { RecentFavorites } from "@/components/dashboard/recent-favorites";
+import { RecentPurchases } from "@/components/dashboard/recent-purchases";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { FavoriteCountriesSection } from "@/components/dashboard/favorite-countries-section";
 
@@ -18,6 +19,7 @@ function DashboardPage() {
     <div className="space-y-8">
       <DashboardWelcome userName={user?.name} />
       <DashboardStats stats={stats} />
+      <RecentPurchases />
       <FavoriteCountriesSection />
       <RecentFavorites
         favorites={recentFavorites}
