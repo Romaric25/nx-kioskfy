@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject, BadRequestException, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { DRIZZLE } from "../db";
 import { orders, revenueShares, newspapers } from "../db/app-schema";
@@ -30,7 +30,43 @@ export class OrdersService {
   }
 
   async createBatch(userId: string, items: { newspaperId: string; price: number }[]) {
-    return Promise.all(items.map((item) => this.create(userId, item.newspaperId, item.price)));
+    return Promise.all(
+      items.map(async (item) => {
+        // Évite de dupliquer un achat : si une commande en attente existe
+        // déjà pour ce journal et cet utilisateur, on la réutilise au lieu
+        // d'en créer une seconde.
+        const existant = await this.db.query.orders.findFirst({
+          where: and(
+            eq(orders.userId, userId),
+            eq(orders.newspaperId, item.newspaperId),
+            eq(orders.status as any, "pending"),
+          ),
+          with: { newspaper: { with: { organization: true } } },
+        });
+        if (existant) return existant;
+        return this.create(userId, item.newspaperId, item.price);
+      }),
+    );
+  }
+
+  /**
+   * Supprime une commande de l'utilisateur, uniquement si elle est encore
+   * en attente de paiement (une commande payée ne peut pas être supprimée).
+   */
+  async deletePending(userId: string, orderId: string) {
+    const order = await this.db.query.orders.findFirst({
+      where: and(eq(orders.id, orderId), eq(orders.userId, userId)),
+    });
+    if (!order) {
+      throw new NotFoundException("Commande introuvable");
+    }
+    if ((order.status as string) !== "pending") {
+      throw new BadRequestException(
+        "Seules les commandes en attente de paiement peuvent être supprimées",
+      );
+    }
+    await this.db.delete(orders).where(eq(orders.id, orderId));
+    return { deleted: true };
   }
 
   async updatePaymentId(orderId: string, paymentId: string) {

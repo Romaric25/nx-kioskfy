@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "@unpic/react";
 import type { PispiCheckoutCloseResult } from "@pi-spi/checkout";
 import {
@@ -16,6 +16,7 @@ import {
   XCircle,
   BookOpen,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
 import {
   Badge,
@@ -94,6 +95,33 @@ function AchatsPage() {
       paymentId: string;
     }) => api.orders.updatePaymentId(orderIds, paymentId),
   });
+
+  // Suppression d'une commande en attente (évite d'accumuler des achats
+  // dupliqués avant paiement).
+  const queryClient = useQueryClient();
+  const deleteOrder = useMutation({
+    mutationFn: (orderId: string) => api.orders.remove(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myOrders"] });
+    },
+    onError: (err) => {
+      setPaymentError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de supprimer la commande.",
+      );
+    },
+  });
+
+  const handleDeleteOrder = (order: MyOrder) => {
+    if (
+      window.confirm(
+        "Supprimer cette commande en attente de paiement ? Vous pourrez la recommander plus tard.",
+      )
+    ) {
+      deleteOrder.mutate(order.id);
+    }
+  };
 
   /**
    * Fermeture du widget PI-SPI : on laisse la page de succès confirmer
@@ -360,6 +388,22 @@ function AchatsPage() {
                             }
                             onClose={handlePaymentClose}
                           />
+                        )}
+                        {status === "pending" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={deleteOrder.isPending}
+                            className="w-full sm:w-auto text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteOrder(order)}
+                          >
+                            {deleteOrder.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 data-icon="inline-start" />
+                            )}
+                            Supprimer
+                          </Button>
                         )}
                         <Button
                           asChild

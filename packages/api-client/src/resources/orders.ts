@@ -63,6 +63,14 @@ export class OrdersResource {
     return this.fetch("/orders/my", buildInit("GET", opts));
   }
 
+  /** Supprime une commande en attente de paiement. */
+  async remove(
+    orderId: string,
+    opts?: FetchOptions,
+  ): Promise<{ deleted: boolean }> {
+    return this.fetch(`/orders/${orderId}`, buildInit("DELETE", opts));
+  }
+
   /** Dernier alias PI-SPI (payeur) utilisé par l'utilisateur connecté. */
   async getMyPayeurAlias(
     opts?: FetchOptions,

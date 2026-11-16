@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { Session, AuthGuard, Roles, type UserSession } from "@thallesp/nestjs-better-auth";
 import type { Auth } from "../auth";
@@ -25,6 +25,13 @@ export class OrdersController {
   @ApiOperation({ summary: "Mes commandes" })
   getMy(@Session() session: AuthSession) {
     return this.ordersService.getByUserId(session.user.id);
+  }
+
+  @Delete(":id")
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: "Supprimer une commande en attente de paiement" })
+  supprimer(@Session() session: AuthSession, @Param("id") id: string) {
+    return this.ordersService.deletePending(session.user.id, id);
   }
 
   @Get("my/payeur-alias")
