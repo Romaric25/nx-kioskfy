@@ -1,4 +1,5 @@
 import type { FetchOptions } from "../types";
+import type { AdminStatsResponse } from "@kioskfy/types";
 
 type Fetcher = (path: string, init?: RequestInit) => Promise<any>;
 
@@ -32,7 +33,7 @@ export class AdminResource {
   constructor(private fetch: Fetcher) {}
 
   /** Get admin dashboard statistics. */
-  async getStats(opts?: FetchOptions): Promise<unknown> {
+  async getStats(opts?: FetchOptions): Promise<AdminStatsResponse> {
     return this.fetch("/admin/stats", buildInit("GET", opts));
   }
 

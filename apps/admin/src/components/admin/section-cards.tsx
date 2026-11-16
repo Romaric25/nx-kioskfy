@@ -1,97 +1,106 @@
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { Building2, ShoppingBag, Users, Wallet } from "lucide-react";
 import {
-  Badge,
   Card,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
+  Skeleton,
+  formatCurrency,
 } from "@kioskfy/ui";
+import type { AdminStatsResponse } from "@kioskfy/types";
 
-export function SectionCards() {
+interface SectionCardsProps {
+  stats: AdminStatsResponse | null;
+  loading: boolean;
+}
+
+/** Cartes de synthèse du dashboard, alimentées par GET /admin/stats. */
+export function SectionCards({ stats, loading }: SectionCardsProps) {
   return (
     <div className="grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:shadow-xs *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card @xl/main:grid-cols-2 @5xl/main:grid-cols-4 lg:px-6">
       <Card className="@container/card">
         <CardHeader className="relative">
-          <CardDescription>Revenu total</CardDescription>
+          <CardDescription>Chiffre d&apos;affaires total</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            1 250 000 FCFA
+            {loading ? (
+              <Skeleton className="h-8 w-32" />
+            ) : (
+              formatCurrency(stats?.totalSalesRevenue ?? 0)
+            )}
           </CardTitle>
           <div className="absolute right-4 top-4">
-            <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <TrendingUp className="size-3" />
-              +12.5%
-            </Badge>
+            <Wallet className="size-4 text-muted-foreground" />
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="flex gap-2 font-medium">
-            En hausse ce mois <TrendingUp className="size-4" />
+          <div className="text-muted-foreground">
+            Commission plateforme :{" "}
+            <span className="font-medium text-foreground">
+              {loading ? "—" : formatCurrency(stats?.totalPlatformRevenue ?? 0)}
+            </span>
           </div>
-          <div className="text-muted-foreground">Revenus des 6 derniers mois</div>
         </CardFooter>
       </Card>
 
       <Card className="@container/card">
         <CardHeader className="relative">
-          <CardDescription>Nouveaux clients</CardDescription>
+          <CardDescription>Commandes</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            1 234
+            {loading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              (stats?.totalOrders ?? 0).toLocaleString("fr-FR")
+            )}
           </CardTitle>
           <div className="absolute right-4 top-4">
-            <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <TrendingDown className="size-3" />
-              -20%
-            </Badge>
+            <ShoppingBag className="size-4 text-muted-foreground" />
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="flex gap-2 font-medium">
-            En baisse de 20% <TrendingDown className="size-4" />
+          <div className="text-muted-foreground">
+            Toutes les commandes passées sur la plateforme
           </div>
-          <div className="text-muted-foreground">L&apos;acquisition nécessite de l&apos;attention</div>
         </CardFooter>
       </Card>
 
       <Card className="@container/card">
         <CardHeader className="relative">
-          <CardDescription>Comptes actifs</CardDescription>
+          <CardDescription>Utilisateurs</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            45 678
+            {loading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              (stats?.totalUsers ?? 0).toLocaleString("fr-FR")
+            )}
           </CardTitle>
           <div className="absolute right-4 top-4">
-            <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <TrendingUp className="size-3" />
-              +12.5%
-            </Badge>
+            <Users className="size-4 text-muted-foreground" />
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="flex gap-2 font-medium">
-            Bonne rétention <TrendingUp className="size-4" />
-          </div>
-          <div className="text-muted-foreground">L&apos;engagement dépasse les objectifs</div>
+          <div className="text-muted-foreground">Comptes inscrits</div>
         </CardFooter>
       </Card>
 
       <Card className="@container/card">
         <CardHeader className="relative">
-          <CardDescription>Taux de croissance</CardDescription>
+          <CardDescription>Agences partenaires</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            4.5%
+            {loading ? (
+              <Skeleton className="h-8 w-20" />
+            ) : (
+              (stats?.totalOrganizations ?? 0).toLocaleString("fr-FR")
+            )}
           </CardTitle>
           <div className="absolute right-4 top-4">
-            <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <TrendingUp className="size-3" />
-              +4.5%
-            </Badge>
+            <Building2 className="size-4 text-muted-foreground" />
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="flex gap-2 font-medium">
-            Performance stable <TrendingUp className="size-4" />
+          <div className="text-muted-foreground">
+            Agences de presse actives
           </div>
-          <div className="text-muted-foreground">Conforme aux projections</div>
         </CardFooter>
       </Card>
     </div>

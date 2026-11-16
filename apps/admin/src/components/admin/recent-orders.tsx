@@ -20,6 +20,35 @@ import {
 import { api } from "../../lib/api";
 import type { AdminOrderResponse } from "@kioskfy/types";
 
+function formatDateTime(iso: string | Date): string {
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  completed: "Payée",
+  pending: "En attente",
+  failed: "Échouée",
+  refunded: "Remboursée",
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const variant =
+    status === "completed"
+      ? "default"
+      : status === "pending"
+        ? "secondary"
+        : status === "failed"
+          ? "destructive"
+          : "outline";
+  return <Badge variant={variant}>{STATUS_LABELS[status] ?? status}</Badge>;
+}
+
+/** Les 5 dernières commandes de la plateforme. */
 export function RecentOrders() {
   const [orders, setOrders] = useState<AdminOrderResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +89,7 @@ export function RecentOrders() {
             <TableHeader>
               <TableRow>
                 <TableHead>Client</TableHead>
+                <TableHead>Date</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Montant</TableHead>
               </TableRow>
@@ -67,11 +97,14 @@ export function RecentOrders() {
             <TableBody>
               {orders.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-medium">{order.user?.email ?? "—"}</TableCell>
+                  <TableCell className="font-medium">
+                    {order.user?.email ?? "—"}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {formatDateTime(order.createdAt)}
+                  </TableCell>
                   <TableCell>
-                    <Badge variant={order.status === "completed" ? "default" : "secondary"}>
-                      {order.status}
-                    </Badge>
+                    <StatusBadge status={order.status} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCurrency(order.price)}

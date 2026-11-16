@@ -62,3 +62,7 @@ export type {
   OrganizationCustomer,
   OrganizationCustomersResponse,
 } from "./accounting.types";
+
+// ── Admin ────────────────────────────────────────────────────────────────
+
+export type { AdminSalesPoint, AdminStatsResponse } from "./admin.types";
