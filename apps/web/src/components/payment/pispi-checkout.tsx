@@ -15,10 +15,12 @@ export interface PispiCheckoutProps {
    */
   initialAlias?: string | null;
   /**
-   * Crée les commandes kioskfy (et les lie au futur txId) — appelé quand le
-   * payeur valide son alias dans le widget.
+   * Résout les identifiants des commandes kioskfy à lier au txId — appelé
+   * quand le payeur valide son alias dans le widget. Soit les commandes
+   * viennent d'être créées (flux panier), soit elles existent déjà en
+   * attente de paiement (flux tableau de bord).
    */
-  createOrders: () => Promise<{ orderIds: string[] }>;
+  resolveOrderIds: () => Promise<{ orderIds: string[] }>;
   /** Lie les commandes au txId PI-SPI. */
   linkOrdersToPayment: (orderIds: string[], paymentId: string) => Promise<void>;
   /** Appelée à chaque fermeture du modal du widget. */
@@ -53,17 +55,17 @@ export function PispiCheckout({
   amount,
   motif,
   initialAlias = null,
-  createOrders,
+  resolveOrderIds,
   linkOrdersToPayment,
   onClose,
 }: PispiCheckoutProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
-  const createOrdersRef = useRef(createOrders);
+  const resolveOrderIdsRef = useRef(resolveOrderIds);
   const linkOrdersRef = useRef(linkOrdersToPayment);
   const initialAliasRef = useRef(initialAlias);
   onCloseRef.current = onClose;
-  createOrdersRef.current = createOrders;
+  resolveOrderIdsRef.current = resolveOrderIds;
   linkOrdersRef.current = linkOrdersToPayment;
   initialAliasRef.current = initialAlias;
 
@@ -85,8 +87,8 @@ export function PispiCheckout({
         currencyLabel: "fcfa",
       },
       createPaymentRequest: async (payload) => {
-        // 1. Créer les commandes kioskfy.
-        const { orderIds } = await createOrdersRef.current();
+        // 1. Résoudre les commandes à lier (existantes ou fraîchement créées).
+        const { orderIds } = await resolveOrderIdsRef.current();
 
         // 2. txId stable : il sert de paymentId côté kioskfy.
         // Contrainte du schéma PI-SPI : 35 caractères maximum.
