@@ -8,6 +8,9 @@ export interface PaiementRecuWebhook {
   commandeId?: string;
   txId?: string;
   end2endId?: string;
+  payeurAlias?: string;
+  payeurNom?: string;
+  payeurPays?: string;
   [key: string]: unknown;
 }
 
@@ -75,7 +78,17 @@ export class WebhooksService {
       return;
     }
     try {
-      const resultat = await this.payments.processSuccess(txId);
+      const resultat = await this.payments.processSuccess(txId, {
+        ...(typeof payload.payeurAlias === "string" && payload.payeurAlias
+          ? { payeurAlias: payload.payeurAlias }
+          : {}),
+        ...(typeof payload.payeurNom === "string" && payload.payeurNom
+          ? { payeurNom: payload.payeurNom }
+          : {}),
+        ...(typeof payload.payeurPays === "string" && payload.payeurPays
+          ? { payeurPays: payload.payeurPays }
+          : {}),
+      });
       this.logger.log(
         `PAIEMENT_RECU appliqué : ${resultat.orderIds.length} commande(s) payée(s) pour ${txId}`,
       );

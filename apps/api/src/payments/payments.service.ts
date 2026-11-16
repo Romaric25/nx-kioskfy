@@ -5,6 +5,13 @@ import { orders, revenueShares, organizationBalances, siteSettings } from "../db
 import { eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "../db";
 
+/** Informations du payeur PI-SPI (webhook ou interrogation du SaaS). */
+export interface InfosPayeur {
+  payeurAlias?: string;
+  payeurNom?: string;
+  payeurPays?: string;
+}
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -51,9 +58,10 @@ export class PaymentsService {
    * Marque payées les commandes liées à un paiement et crée les parts de
    * revenus + soldes. IDEMPOTENT : seules les commandes non terminées sont
    * traitées — un webhook rejoué (ou doublon avec le polling) ne crée pas
-   * de parts en double.
+   * de parts en double. Enregistre aussi les informations du payeur PI-SPI
+   * (alias, nom, pays) sur les commandes.
    */
-  async processSuccess(paymentId: string) {
+  async processSuccess(paymentId: string, payeur?: InfosPayeur) {
     const found = await this.db.query.orders.findMany({
       where: eq(orders.paymentId, paymentId),
       with: { newspaper: { with: { organization: true, country: true } } },
@@ -65,7 +73,13 @@ export class PaymentsService {
     const { platformPercentage, organizationPercentage } =
       await this.pourcentagesRepartition();
 
-    await this.db.update(orders).set({ status: "completed", updatedAt: new Date() }).where(eq(orders.paymentId, paymentId));
+    await this.db.update(orders).set({
+      status: "completed",
+      updatedAt: new Date(),
+      ...(payeur?.payeurAlias ? { payeurAlias: payeur.payeurAlias } : {}),
+      ...(payeur?.payeurNom ? { payeurNom: payeur.payeurNom } : {}),
+      ...(payeur?.payeurPays ? { payeurPays: payeur.payeurPays } : {}),
+    }).where(eq(orders.paymentId, paymentId));
 
     await Promise.all(aTraiter.map(async (order) => {
       const orgId = order.newspaper?.organizationId;
@@ -278,7 +292,39 @@ export class PaymentsService {
       return { success: false, statut };
     }
 
-    const { orderIds } = await this.processSuccess(txId);
+    // Récupère les informations du payeur depuis le paiement reçu
+    // (alias, nom, pays) pour les enregistrer sur les commandes.
+    const paiement = await this.getPaiementRecu(txId);
+
+    const { orderIds } = await this.processSuccess(txId, {
+      ...(paiement?.payeurAlias ? { payeurAlias: String(paiement.payeurAlias) } : {}),
+      ...(paiement?.payeurNom ? { payeurNom: String(paiement.payeurNom) } : {}),
+      ...(paiement?.payeurPays ? { payeurPays: String(paiement.payeurPays) } : {}),
+    });
     return { success: true, statut, orderIds };
+  }
+
+  /** Paiement reçu chez le SaaS (`GET /pispi/paiements/{txId}`), best effort. */
+  private async getPaiementRecu(txId: string): Promise<{
+    payeurAlias?: string;
+    payeurNom?: string;
+    payeurPays?: string;
+  } | null> {
+    try {
+      const res = await fetch(
+        `${this.pispiSaasApiUrl}/pispi/paiements/${encodeURIComponent(txId)}`,
+      );
+      if (!res.ok) return null;
+      return (await res.json()) as {
+        payeurAlias?: string;
+        payeurNom?: string;
+        payeurPays?: string;
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Impossible de récupérer le payeur pour ${txId} : ${(error as Error).message}`,
+      );
+      return null;
+    }
   }
 }

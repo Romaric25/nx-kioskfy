@@ -154,6 +154,10 @@ export const orders = mysqlTable(
         price: decimal("price", { precision: 10, scale: 2 }).notNull(),
         status: orderStatusEnum.default("pending").notNull(),
         paymentId: varchar("paymentId", { length: 255 }),
+        // ── Payeur PI-SPI (renseignées quand le paiement est reçu) ──
+        payeurAlias: varchar("payeurAlias", { length: 255 }),
+        payeurNom: varchar("payeurNom", { length: 255 }),
+        payeurPays: varchar("payeurPays", { length: 3 }),
         createdAt: timestamp("createdAt").defaultNow().notNull(),
         updatedAt: timestamp("updatedAt")
             .defaultNow()
