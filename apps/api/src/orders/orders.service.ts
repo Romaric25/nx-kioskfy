@@ -63,7 +63,7 @@ export class OrdersService {
         totalRevenue: sum(revenueShares.totalAmount),
         totalOrgRevenue: sum(revenueShares.organizationAmount),
         totalPlatformRevenue: sum(revenueShares.platformAmount),
-        totalSales: count(revenueShares.id),
+        salesCount: count(revenueShares.id),
       })
       .from(revenueShares)
       .where(and(eq(revenueShares.organizationId, organizationId), sql`${revenueShares.status} != 'cancelled'`));
@@ -81,7 +81,7 @@ export class OrdersService {
       totalRevenue: Number(statsRow?.totalRevenue || 0),
       totalOrgRevenue: Number(statsRow?.totalOrgRevenue || 0),
       totalPlatformRevenue: Number(statsRow?.totalPlatformRevenue || 0),
-      totalSales: statsRow?.totalSales || 0,
+      salesCount: Number(statsRow?.salesCount || 0),
       publishedCount,
       recentSales,
     };
