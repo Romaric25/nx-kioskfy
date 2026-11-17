@@ -33,7 +33,11 @@ export class WebhooksController {
     const corpsBrut: string | Buffer = req.rawBody ?? JSON.stringify(body);
 
     if (!this.webhooks.verifierSignature(corpsBrut, signature)) {
-      this.logger.warn("Notification PI-SPI avec signature invalide rejetée");
+      this.logger.warn(
+        "Notification PI-SPI avec signature invalide rejetée — vérifiez que " +
+          "PISPI_WEBHOOK_SECRET est défini et identique au callbackSecret " +
+          "envoyé à l'API SaaS (sinon le secret de la notification ne peut pas être vérifié)",
+      );
       throw new BadRequestException("Signature invalide");
     }
 

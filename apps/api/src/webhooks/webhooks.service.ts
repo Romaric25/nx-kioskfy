@@ -31,21 +31,46 @@ export class WebhooksService {
   ) {}
 
   /**
-   * Vérifie la signature HMAC-SHA256 (hex) du corps brut contre le secret
-   * partagé `PISPI_WEBHOOK_SECRET`. Comparaison à temps constant.
+   * Vérifie la signature HMAC-SHA256 du corps brut contre le secret partagé
+   * `PISPI_WEBHOOK_SECRET`. Comparaison à temps constant.
+   *
+   * Tolère les signatures hex (minuscules/majuscules), base64 et le préfixe
+   * `sha256=` (l'émetteur SaaS peut varier d'encodage selon sa version).
    */
   verifierSignature(corpsBrut: string | Buffer, signature?: string): boolean {
     const secret = this.config.get<string>("PISPI_WEBHOOK_SECRET");
     if (!secret || !signature) return false;
-    const attendu = createHmac("sha256", secret).update(corpsBrut).digest("hex");
-    try {
-      return timingSafeEqual(
-        Buffer.from(attendu, "hex"),
-        Buffer.from(signature, "hex"),
-      );
-    } catch {
-      return false;
+
+    const signatureNormee = signature.trim().replace(/^sha256=/i, "");
+    if (!signatureNormee) return false;
+
+    const cles: Buffer[] = [Buffer.from(secret, "utf8")];
+    if (/^[0-9a-f]{64}$/i.test(secret)) cles.push(Buffer.from(secret, "hex"));
+    const decodeBase64 = Buffer.from(secret, "base64");
+    if (decodeBase64.length > 0) cles.push(decodeBase64);
+
+    for (const cle of cles) {
+      // Deux instances séparées : un second `digest()` sur le même objet
+      // HMAC renvoie une chaîne vide (objet déjà finalisé).
+      const hex = createHmac("sha256", cle).update(corpsBrut).digest("hex");
+      const b64 = createHmac("sha256", cle).update(corpsBrut).digest("base64");
+      for (const candidat of [hex, hex.toUpperCase(), b64]) {
+        if (candidat.length !== signatureNormee.length) continue;
+        try {
+          if (
+            timingSafeEqual(
+              Buffer.from(candidat, "utf8"),
+              Buffer.from(signatureNormee, "utf8"),
+            )
+          ) {
+            return true;
+          }
+        } catch {
+          // Longueurs égales vérifiées ci-dessus : ne devrait pas arriver.
+        }
+      }
     }
+    return false;
   }
 
   /** Distribue l'événement reçu vers le bon handler métier. */
