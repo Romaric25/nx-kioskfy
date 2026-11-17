@@ -1,6 +1,5 @@
 import { Injectable, Inject, NotFoundException, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { createHash } from "node:crypto";
 import { DRIZZLE } from "../db";
 import { orders, revenueShares, organizationBalances, siteSettings } from "../db/app-schema";
 import { eq, inArray, sql } from "drizzle-orm";
@@ -130,16 +129,17 @@ export class PaymentsService {
   }
 
   /**
-   * Crée les règlements escrow chez l'API SaaS PI-SPI pour le txId donné :
-   * **un règlement par agence** (un panier peut mélanger plusieurs agences).
+   * Crée le règlement escrow chez l'API SaaS PI-SPI pour le txId donné.
    *
-   * Une agence sans `pispiAlias` est ignorée pour le règlement (loguée) :
-   * le flux de polling reste le filet de sécurité pour marquer ses
-   * commandes payées.
+   * Modèle retenu : **tout l'argent reste sur le compte business** de la
+   * marketplace (le compte qui reçoit le paiement du client). Le règlement
+   * est donc créé avec le compte business comme bénéficiaire — l'agence
+   * demandera son paiement plus tard depuis son espace membre (retrait
+   * vers son alias PI-SPI). Aucun alias d'agence n'est requis au checkout,
+   * le webhook a donc toujours un règlement à marquer.
    *
-   * Idempotent : `commandeId` déterministe (`txId` pour un panier
-   * mono-agence, `txId-<hash8(orgId)>` sinon) — un 409 (commandeId déjà
-   * enregistré) est traité comme OK.
+   * Idempotent : `commandeId = txId` — un 409 (déjà enregistré) est
+   * traité comme OK.
    */
   async creerReglementSaaS(txId: string) {
     const found = await this.db.query.orders.findMany({
@@ -151,80 +151,51 @@ export class PaymentsService {
       throw new NotFoundException(`Aucune commande liée au txId ${txId}`);
     }
 
-    // Groupe les commandes par agence (chaque règlement escrow est par agence).
-    const parAgence = new Map<string, typeof found>();
-    for (const order of found) {
-      const orgId = order.newspaper?.organizationId;
-      if (!orgId) continue;
-      const liste = parAgence.get(orgId) ?? [];
-      liste.push(order);
-      parAgence.set(orgId, liste);
-    }
-
+    const total = found.reduce((sum, order) => sum + parseFloat(order.price), 0);
+    const montant = Math.round(total);
     const { platformPercentage } = await this.pourcentagesRepartition();
+    const commission = Math.round((total * platformPercentage) / 100);
+
+    // Bénéficiaire du règlement : le compte business de la marketplace
+    // (alias configuré dans les paramètres du site, sinon numéro de compte).
+    const compteBusiness =
+      (await this.marketplacePispiAlias()) ||
+      this.config.get<string>("PISPI_ACCOUNT_NUMBER") ||
+      "76713101997799565192";
+
     const callbackUrl = this.callbackUrl;
     const callbackSecret = this.config.get<string>("PISPI_WEBHOOK_SECRET") || undefined;
     const siteIdentifier =
       (await this.siteIdentifier()) || this.config.get<string>("SITE_IDENTIFIER") || undefined;
 
-    const resultats: Array<Record<string, unknown>> = [];
+    const res = await fetch(`${this.pispiSaasApiUrl}/reglements`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        commandeId: txId,
+        montant,
+        commission,
+        vendeurCompte: compteBusiness,
+        ...(siteIdentifier ? { siteIdentifier } : {}),
+        ...(callbackUrl ? { callbackUrl } : {}),
+        ...(callbackSecret ? { callbackSecret } : {}),
+      }),
+    });
 
-    for (const [orgId, commandes] of parAgence) {
-      const alias = commandes[0].newspaper?.organization?.pispiAlias;
-      if (!alias) {
-        this.logger.warn(
-          `Règlement SaaS ignoré pour ${txId} : l'agence ${orgId} n'a pas de pispiAlias ` +
-            `(configurez-le dans les paramètres de l'agence pour activer l'escrow)`,
-        );
-        resultats.push({ cree: false, raison: "pispiAlias manquant", organizationId: orgId });
-        continue;
-      }
-
-      const total = commandes.reduce((sum, order) => sum + parseFloat(order.price), 0);
-      const montant = Math.round(total);
-      const commission = Math.round((total * platformPercentage) / 100);
-
-      // commandeId déterministe et idempotent : txId seul si mono-agence,
-      // txId-<hash8(orgId)> sinon (max 64 caractères côté SaaS).
-      const suffixe =
-        parAgence.size > 1
-          ? `-${createHash("sha256").update(orgId).digest("hex").slice(0, 8)}`
-          : "";
-      const commandeId = `${txId}${suffixe}`.slice(0, 64);
-
-      const res = await fetch(`${this.pispiSaasApiUrl}/reglements`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          commandeId,
-          montant,
-          commission,
-          vendeurCompte: alias,
-          ...(siteIdentifier ? { siteIdentifier } : {}),
-          ...(callbackUrl ? { callbackUrl } : {}),
-          ...(callbackSecret ? { callbackSecret } : {}),
-        }),
-      });
-
-      if (res.status === 409) {
-        // commandeId unique : le règlement existe déjà (idempotence).
-        resultats.push({ cree: false, dejaExistant: true, commandeId });
-        continue;
-      }
-      if (!res.ok) {
-        this.logger.error(
-          `Échec de création du règlement SaaS pour ${commandeId} (HTTP ${res.status}) : ${await res.text()}`,
-        );
-        resultats.push({ cree: false, raison: `HTTP ${res.status}`, commandeId });
-        continue;
-      }
-      this.logger.log(
-        `Règlement SaaS créé pour ${commandeId} (agence ${orgId}, net vendeur ${montant - commission} FCFA)`,
-      );
-      resultats.push({ cree: true, reglement: await res.json() });
+    if (res.status === 409) {
+      // commandeId unique : le règlement existe déjà (idempotence).
+      return { cree: false, dejaExistant: true };
     }
-
-    return { resultats };
+    if (!res.ok) {
+      this.logger.error(
+        `Échec de création du règlement SaaS pour ${txId} (HTTP ${res.status}) : ${await res.text()}`,
+      );
+      return { cree: false, raison: `HTTP ${res.status}` };
+    }
+    this.logger.log(
+      `Règlement SaaS créé pour ${txId} (net ${montant - commission} FCFA, compte business ${compteBusiness})`,
+    );
+    return { cree: true, reglement: await res.json() };
   }
 
   /**
@@ -281,6 +252,21 @@ export class PaymentsService {
       .select({ value: siteSettings.value })
       .from(siteSettings)
       .where(eq(siteSettings.key, "site_identifier"));
+    return setting?.value && setting.value.trim() !== ""
+      ? setting.value.trim()
+      : null;
+  }
+
+  /**
+   * Alias PI-SPI du compte business de la marketplace, configuré dans les
+   * paramètres du site (admin kioskfy, groupe « Paiements & commissions »,
+   * clé `marketplace_pispi_alias`).
+   */
+  private async marketplacePispiAlias(): Promise<string | null> {
+    const [setting] = await this.db
+      .select({ value: siteSettings.value })
+      .from(siteSettings)
+      .where(eq(siteSettings.key, "marketplace_pispi_alias"));
     return setting?.value && setting.value.trim() !== ""
       ? setting.value.trim()
       : null;
