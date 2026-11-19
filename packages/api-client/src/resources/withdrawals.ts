@@ -50,6 +50,23 @@ export class WithdrawalsResource {
     );
   }
 
+  /** Retraits d'une organisation (propriétaire uniquement côté API). */
+  async getByOrganization(
+    orgId: string,
+    limit?: number,
+    offset?: number,
+    opts?: FetchOptions,
+  ): Promise<WithdrawalItem[]> {
+    const qs = new URLSearchParams();
+    if (limit !== undefined) qs.set("limit", String(limit));
+    if (offset !== undefined) qs.set("offset", String(offset));
+    const query = qs.toString();
+    return this.fetch(
+      `/withdrawals/organization/${encodeURIComponent(orgId)}${query ? `?${query}` : ""}`,
+      buildInit("GET", opts),
+    );
+  }
+
   /** Get a withdrawal by ID. */
   async getById(
     id: number,

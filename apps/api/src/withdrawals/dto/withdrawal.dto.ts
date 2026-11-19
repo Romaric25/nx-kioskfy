@@ -4,14 +4,12 @@ import { Type } from "class-transformer";
 
 export class CreateWithdrawalDto {
   @ApiProperty() @IsString() organizationId!: string;
-  @ApiProperty() @IsNumber() amount!: number;
+  @ApiProperty() @IsNumber() @Min(1) amount!: number;
   @ApiPropertyOptional() @IsOptional() @IsString() currency?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() paymentMethod?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() paymentDetails?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() externalReference?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() status?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() userId?: string;
 }
 
 export class CancelWithdrawalDto {

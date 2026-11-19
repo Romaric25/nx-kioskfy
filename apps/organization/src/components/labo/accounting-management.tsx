@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
   Button,
@@ -8,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
   currencySymbol,
+  Input,
   Skeleton,
   Table,
   TableBody,
@@ -16,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@kioskfy/ui";
-import { DollarSign, Landmark, RefreshCw, TrendingDown, Wallet } from "lucide-react";
+import { Banknote, DollarSign, Landmark, RefreshCw, TrendingDown, Wallet, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import type {
   OrganizationBalanceResponse,
@@ -27,6 +29,8 @@ import type { WithdrawalItem } from "@kioskfy/types";
 
 interface AccountingManagementProps {
   organizationId: string;
+  /** Seul le propriétaire peut demander un retrait / l'annuler. */
+  isOwner: boolean;
 }
 
 function formatDate(date: string | Date): string {
@@ -69,7 +73,13 @@ function StatutBadge({ statut }: { statut: string }) {
 /** Revenus réels (après commission), solde et toutes les commandes. */
 export function AccountingManagement({
   organizationId,
+  isOwner,
 }: AccountingManagementProps) {
+  const queryClient = useQueryClient();
+  const [montant, setMontant] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["org-stats", organizationId],
     queryFn: () =>
@@ -91,8 +101,56 @@ export function AccountingManagement({
   const { data: withdrawals, isLoading: withdrawalsLoading } = useQuery({
     queryKey: ["withdrawals", organizationId],
     queryFn: () =>
-      api.withdrawals.getAll(organizationId) as Promise<WithdrawalItem[]>,
+      api.withdrawals.getByOrganization(organizationId) as Promise<WithdrawalItem[]>,
+    enabled: isOwner,
   });
+
+  const invalidateFinances = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["withdrawals", organizationId] }),
+      queryClient.invalidateQueries({ queryKey: ["org-balances", organizationId] }),
+    ]);
+
+  const createMutation = useMutation({
+    mutationFn: (amount: number) =>
+      api.withdrawals.create({ organizationId, amount }) as Promise<WithdrawalItem>,
+    onSuccess: () => {
+      setMontant("");
+      setActionError(null);
+      setActionSuccess(
+        "Demande de paiement envoyée. Elle sera traitée par l'équipe kioskfy.",
+      );
+      void invalidateFinances();
+    },
+    onError: (err) => {
+      setActionSuccess(null);
+      setActionError(
+        err instanceof Error ? err.message : "Impossible d'envoyer la demande",
+      );
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) =>
+      api.withdrawals.cancel(id) as Promise<WithdrawalItem>,
+    onSuccess: () => {
+      setActionError(null);
+      setActionSuccess("Demande annulée, le solde a été restauré.");
+      void invalidateFinances();
+    },
+    onError: (err) => {
+      setActionSuccess(null);
+      setActionError(
+        err instanceof Error ? err.message : "Impossible d'annuler la demande",
+      );
+    },
+  });
+
+  const soldeDisponible = Number(balances?.organizationAmount ?? 0);
+  const montantDemande = Number(montant);
+  const montantInvalide =
+    !Number.isFinite(montantDemande) || montantDemande <= 0;
+  const montantDepasse = montantDemande > soldeDisponible;
 
   const syncBalances = async () => {
     try {
@@ -266,53 +324,129 @@ export function AccountingManagement({
         </CardContent>
       </Card>
 
-      {/* ── Retraits ──────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Demandes de retrait</CardTitle>
-          <CardDescription>Historique de vos retraits</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {withdrawalsLoading ? (
-            <div className="space-y-2">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : !withdrawals?.length ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Aucune demande de retrait.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Montant</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {withdrawals.map((withdrawal) => (
-                  <TableRow key={withdrawal.id}>
-                    <TableCell>
-                      {formatDate(withdrawal.requestedAt ?? new Date())}
-                    </TableCell>
-                    <TableCell>
-                      {(withdrawal.amount ?? 0).toLocaleString("fr-FR")} {devise}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {withdrawal.status ?? "pending"}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {/* ── Demande de paiement + retraits (owner uniquement) ─────────── */}
+      {isOwner && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Demande de paiement</CardTitle>
+              <CardDescription>
+                Demandez le versement de vos gains. Le montant sera débité
+                de votre solde et traité par l&apos;équipe kioskfy sur votre
+                alias PI-SPI.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="flex-1">
+                  <label
+                    htmlFor="montant-retrait"
+                    className="mb-1.5 block text-sm font-medium"
+                  >
+                    Montant ({devise})
+                  </label>
+                  <Input
+                    id="montant-retrait"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder={`Solde disponible : ${soldeDisponible.toLocaleString("fr-FR")}`}
+                    value={montant}
+                    onChange={(e) => setMontant(e.target.value)}
+                    disabled={createMutation.isPending}
+                  />
+                </div>
+                <Button
+                  onClick={() => createMutation.mutate(montantDemande)}
+                  disabled={
+                    montantInvalide || montantDepasse || createMutation.isPending
+                  }
+                >
+                  <Banknote data-icon="inline-start" />
+                  {createMutation.isPending ? "Envoi…" : "Envoyer la demande"}
+                </Button>
+              </div>
+              {montantDepasse && !montantInvalide && (
+                <p className="text-sm text-destructive">
+                  Le montant demandé dépasse votre solde disponible.
+                </p>
+              )}
+              {actionError && (
+                <p className="text-sm text-destructive">{actionError}</p>
+              )}
+              {actionSuccess && (
+                <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                  {actionSuccess}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Demandes de retrait</CardTitle>
+              <CardDescription>
+                Historique de vos demandes de paiement
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {withdrawalsLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : !withdrawals?.length ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  Aucune demande de retrait.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Montant</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {withdrawals.map((withdrawal) => (
+                      <TableRow key={withdrawal.id}>
+                        <TableCell>
+                          {formatDate(withdrawal.requestedAt ?? new Date())}
+                        </TableCell>
+                        <TableCell>
+                          {(withdrawal.amount ?? 0).toLocaleString("fr-FR")}{" "}
+                          {devise}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {withdrawal.status ?? "pending"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {withdrawal.status === "pending" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={cancelMutation.isPending}
+                              onClick={() => cancelMutation.mutate(withdrawal.id)}
+                            >
+                              <XCircle data-icon="inline-start" />
+                              Annuler
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

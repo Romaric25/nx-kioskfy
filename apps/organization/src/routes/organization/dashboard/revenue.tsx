@@ -28,7 +28,10 @@ function RevenuePage() {
         </p>
       </div>
 
-      <AccountingManagement organizationId={organization.id} />
+      <AccountingManagement
+        organizationId={organization.id}
+        isOwner={organization.role === "owner"}
+      />
     </div>
   );
 }

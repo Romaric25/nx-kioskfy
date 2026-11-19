@@ -136,6 +136,8 @@ export interface OrganizationItem {
   /** Prix fixe du journal, hors commission kioskfy (montant net par exemplaire). */
   newspaperPrice?: number | null;
   metadata?: Record<string, unknown> | string | null;
+  /** Rôle du membre connecté dans cette organisation (owner, admin…). */
+  role?: string | null;
   logoUpload?: {
     id: number;
     filename: string;
@@ -230,8 +232,6 @@ export interface CreateWithdrawalInput {
   notes?: string;
   currency?: string;
   externalReference?: string;
-  status?: WithdrawalStatus;
-  userId?: string;
 }
 
 // ── Category ─────────────────────────────────────────────────────────────

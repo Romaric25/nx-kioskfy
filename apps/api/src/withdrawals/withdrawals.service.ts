@@ -13,7 +13,14 @@ export class WithdrawalsService {
     private readonly organizations: OrganizationsService,
   ) {}
 
-  async create(dto: CreateWithdrawalDto) {
+  /**
+   * Crée une demande de retrait. Réservée au propriétaire (`owner`) de
+   * l'agence : le montant est débité du solde disponible et la demande
+   * part en `pending` pour traitement par l'équipe kioskfy.
+   */
+  async create(dto: CreateWithdrawalDto, userId: string) {
+    await this.organizations.assertOwner(userId, dto.organizationId);
+
     const balance = await this.db.query.organizationBalances.findFirst({
       where: eq(organizationBalances.organizationId, dto.organizationId),
     });
@@ -25,12 +32,12 @@ export class WithdrawalsService {
       organizationId: dto.organizationId,
       amount: dto.amount.toFixed(2),
       currency: dto.currency || "XAF",
-      status: (dto.status || "pending") as any,
+      status: "pending",
       paymentMethod: dto.paymentMethod || null,
       paymentDetails: dto.paymentDetails || null,
       notes: dto.notes || null,
       externalReference: dto.externalReference || null,
-      userId: dto.userId || null,
+      userId,
     } as any);
 
     // Débit du solde : logique centralisée dans OrganizationsService.
@@ -47,7 +54,9 @@ export class WithdrawalsService {
     });
   }
 
-  async getByOrganization(orgId: string, limit = 50, offset = 0) {
+  /** Retraits d'une organisation — réservé au propriétaire de l'agence. */
+  async getByOrganization(orgId: string, userId: string, limit = 50, offset = 0) {
+    await this.organizations.assertOwner(userId, orgId);
     return this.db.query.withdrawals.findMany({
       where: eq(withdrawals.organizationId, orgId),
       orderBy: (w, { desc }) => [desc(w.createdAt)],
@@ -61,8 +70,10 @@ export class WithdrawalsService {
     return w;
   }
 
-  async cancel(id: number, reason?: string) {
+  /** Annule une demande en attente — réservé au propriétaire de l'agence. */
+  async cancel(id: number, userId: string, reason?: string) {
     const w = await this.getById(id);
+    await this.organizations.assertOwner(userId, w.organizationId);
     if (w.status !== "pending") throw new BadRequestException("Seuls les retraits en attente peuvent être annulés");
 
     await this.db.update(withdrawals).set({ status: "cancelled" as any, notes: reason || w.notes }).where(eq(withdrawals.id, id));

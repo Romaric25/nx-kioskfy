@@ -57,7 +57,9 @@ export class OrganizationsService {
 
   /**
    * The organizations (press agencies) the current user belongs to,
-   * via their Better Auth membership.
+   * via their Better Auth membership. Chaque agence est renvoyée avec le
+   * rôle du membre connecté (`owner`, `admin`, …) pour gérer les accès
+   * côté client (ex. demande de retrait réservée au propriétaire).
    */
   async getMyOrganizations(userId: string): Promise<OrganizationItem[]> {
     const memberships = await this.db.query.members.findMany({
@@ -71,7 +73,11 @@ export class OrganizationsService {
       orderBy: (orgs, { desc }) => [desc(orgs.createdAt)],
     });
 
-    return rows.map((org) => this.mapOrganization(org));
+    return rows.map((org) => ({
+      ...this.mapOrganization(org),
+      role:
+        memberships.find((m) => m.organizationId === org.id)?.role ?? null,
+    }));
   }
 
   /** Détail d'une organisation pour l'un de ses membres. */
@@ -267,8 +273,12 @@ export class OrganizationsService {
     });
   }
 
-  /** Vérifie que l'utilisateur est le propriétaire (role `owner`) de l'agence. */
-  private async assertOwner(userId: string, organizationId: string): Promise<void> {
+  /**
+   * Vérifie que l'utilisateur est le propriétaire (role `owner`) de
+   * l'agence. Utilisé pour protéger les actions sensibles : modification,
+   * suppression et demandes de retrait.
+   */
+  async assertOwner(userId: string, organizationId: string): Promise<void> {
     const membership = await this.db.query.members.findFirst({
       where: and(
         eq(members.organizationId, organizationId),
