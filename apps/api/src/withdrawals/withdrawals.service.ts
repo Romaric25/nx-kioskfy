@@ -241,6 +241,14 @@ export class WithdrawalsService implements OnModuleInit {
     });
     if (!res.ok) {
       const texte = (await res.text()).slice(0, 300);
+      // 404 du SaaS = alias/beneficiaire invalide : erreur claire (400),
+      // pas une panne de passerelle (502).
+      if (res.status === 404) {
+        throw new BadRequestException(
+          texte.replace(/^.*"message":"([^"]+)".*$/s, '$1') ||
+            'Alias PI-SPI du bénéficiaire introuvable',
+        );
+      }
       throw new BadGatewayException(
         `Transfert PI-SPI refusé (${res.status}) : ${texte}`,
       );
