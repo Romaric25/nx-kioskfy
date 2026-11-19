@@ -6,7 +6,7 @@ import { api } from "../../lib/api";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { WithdrawalItem } from "@kioskfy/types";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Ban, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { Ban, Loader2, Send, XCircle } from "lucide-react";
 import { Badge } from "@kioskfy/ui";
 
 export const Route = createFileRoute("/admin/withdrawals")({ component: WithdrawalsPage });
@@ -98,7 +98,7 @@ function WithdrawalsPage() {
       await api.withdrawals.traiter(pendingAction.item.id, {
         statut: pendingAction.action,
         ...(pendingAction.action === "completed"
-          ? { notes: "Versement effectué par l'administration" }
+          ? { notes: "Versement PI-SPI initié par l'administration" }
           : {}),
         ...(pendingAction.action === "failed"
           ? { reason: "Demande rejetée par l'administration" }
@@ -129,8 +129,8 @@ function WithdrawalsPage() {
             <RowActions
               actions={[
                 {
-                  label: "Marquer payée",
-                  icon: CheckCircle2,
+                  label: "Verser via PI-SPI",
+                  icon: Send,
                   disabled: actionLoading,
                   hidden: !traitable,
                   onClick: () =>
@@ -168,9 +168,9 @@ function WithdrawalsPage() {
     { title: string; description: string; confirmLabel: string }
   > = {
     completed: {
-      title: "Marquer la demande comme payée ?",
-      description: `Le versement de ${pendingAction?.item.amount.toLocaleString("fr-FR")} ${pendingAction?.item.currency} sera enregistré comme effectué vers l'agence.`,
-      confirmLabel: "Marquer payée",
+      title: "Verser via PI-SPI ?",
+      description: `Un transfert PI-SPI de ${pendingAction?.item.amount.toLocaleString("fr-FR")} ${pendingAction?.item.currency} sera initié vers l'alias de l'agence. Le statut passera automatiquement à « Payée » quand la plateforme confirmera le transfert.`,
+      confirmLabel: "Initier le versement",
     },
     failed: {
       title: "Marquer la demande comme échouée ?",
