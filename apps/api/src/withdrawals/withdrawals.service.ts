@@ -19,7 +19,8 @@ import { OrganizationsService } from "../organizations/organizations.service";
 /** Résultat de l'initiation d'un versement PI-SPI. */
 interface ResultatVersement {
   statut: "completed" | "processing";
-  externalReference: string;
+  externalReference: string | null;
+  note: string;
 }
 
 /**
@@ -61,46 +62,127 @@ export class WithdrawalsService implements OnModuleInit {
       where: eq(withdrawals.status, "processing"),
       limit: 50,
     });
+    if (enCours.length === 0) return;
+
+    // Journal des événements PI-SPI reçus par le SaaS : permet de
+    // réconcilier les paiements SORTANTS (agence cliente : la plateforme
+    // notifie le débit de notre compte sans qu'on l'initie par API).
+    const evenements = await this.recupererEvenementsSaaS();
+
     for (const w of enCours) {
-      if (!w.externalReference) continue;
-      try {
-        const res = await fetch(
-          `${this.pispiSaasApiUrl}/pispi/transferts/${encodeURIComponent(w.externalReference)}`,
-          { signal: AbortSignal.timeout(15_000) },
-        );
-        if (!res.ok) continue; // 404 : transfert pas encore visible côté plateforme
-        const transfert = (await res.json()) as {
-          statut?: string;
-          end2endId?: string;
-        };
-        const statut = String(transfert.statut ?? "").toUpperCase();
-        if (statut === "IRREVOCABLE") {
-          await this.db
-            .update(withdrawals)
-            .set({
-              status: "completed",
-              externalReference: transfert.end2endId ?? w.externalReference,
-            })
-            .where(eq(withdrawals.id, w.id));
-          this.logger.log(`Retrait #${w.id} versé (transfert irrévocable)`);
-        } else if (statut === "REJETE") {
-          await this.db
-            .update(withdrawals)
-            .set({ status: "failed", notes: "Transfert PI-SPI rejeté" })
-            .where(eq(withdrawals.id, w.id));
-          await this.organizations.annulerRetrait(
-            w.organizationId,
-            Number(w.amount),
+      // 1) Transfert interne initié par nous (INITIE → IRREVOCABLE).
+      if (w.externalReference?.startsWith("WDR-")) {
+        try {
+          const res = await fetch(
+            `${this.pispiSaasApiUrl}/pispi/transferts/${encodeURIComponent(w.externalReference)}`,
+            { signal: AbortSignal.timeout(15_000) },
           );
-          this.logger.warn(`Retrait #${w.id} rejeté par la plateforme PI-SPI`);
+          if (res.ok) {
+            const transfert = (await res.json()) as {
+              statut?: string;
+              end2endId?: string;
+            };
+            const statut = String(transfert.statut ?? "").toUpperCase();
+            if (statut === "IRREVOCABLE") {
+              await this.marquerComplete(w.id, transfert.end2endId ?? w.externalReference);
+              continue;
+            }
+            if (statut === "REJETE") {
+              await this.marquerEchec(w, "Transfert PI-SPI rejeté");
+              continue;
+            }
+          }
+        } catch {
+          // Transitoire : on réessaiera.
         }
-      } catch (error) {
-        // Erreur transitoire : on réessaiera au prochain passage.
-        this.logger.debug(
-          `Surveillance du retrait #${w.id} impossible : ${(error as Error).message}`,
+      }
+
+      // 2) Versement initié côté agence (demande de paiement du simulateur) :
+      // la plateforme notifie le débit de notre compte dans le journal du
+      // SaaS — on matche par l'alias de l'agence et le montant.
+      const match = await this.trouverEvenementPaiement(w, evenements);
+      if (match) {
+        await this.marquerComplete(
+          w.id,
+          match.commandeId ?? w.externalReference ?? undefined,
         );
       }
     }
+  }
+
+  /** Journal des événements reçus par le SaaS (`GET /webhooks/evenements`). */
+  private async recupererEvenementsSaaS(): Promise<
+    Array<{ commandeId?: string | null; payload?: string | null; evenement: string }>
+  > {
+    try {
+      const res = await fetch(`${this.pispiSaasApiUrl}/webhooks/evenements?limit=100`, {
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) return [];
+      return (await res.json()) as Array<{
+        commandeId?: string | null;
+        payload?: string | null;
+        evenement: string;
+      }>;
+    } catch {
+      return [];
+    }
+  }
+
+  /** Alias PI-SPI de l'agence (lecture base, sans cache compliqué). */
+  private async aliasAgence(organizationId: string): Promise<string | null> {
+    const [org] = await this.db
+      .select({ pispiAlias: orgsTable.pispiAlias })
+      .from(orgsTable)
+      .where(eq(orgsTable.id, organizationId));
+    return org?.pispiAlias ?? null;
+  }
+
+  /**
+   * Événement plateforme correspondant au versement : alias de l'agence ET
+   * montant dans le payload, en excluant PAIEMENT_RECU (entrées clients).
+   */
+  private async trouverEvenementPaiement(
+    w: { id: number; amount: string; organizationId: string },
+    evenements: Array<{
+      commandeId?: string | null;
+      payload?: string | null;
+      evenement: string;
+    }>,
+  ) {
+    const alias = await this.aliasAgence(w.organizationId);
+    if (!alias) return undefined;
+    return evenements.find((e) => {
+      if (e.evenement === "PAIEMENT_RECU") return false;
+      const payload = e.payload ?? "";
+      return (
+        payload.includes(alias) &&
+        payload.includes(`"montant":${Number(w.amount)}`)
+      );
+    });
+  }
+
+  private async marquerComplete(id: number, reference?: string): Promise<void> {
+    await this.db
+      .update(withdrawals)
+      .set({
+        status: "completed",
+        ...(reference ? { externalReference: reference } : {}),
+      })
+      .where(eq(withdrawals.id, id));
+    this.logger.log(`Retrait #${id} versé (confirmation plateforme)`);
+  }
+
+  private async marquerEchec(
+    w: { id: number; organizationId: string; amount: string },
+    raison: string,
+  ): Promise<void> {
+    await this.db
+      .update(withdrawals)
+      .set({ status: "failed", notes: raison })
+      .where(eq(withdrawals.id, w.id));
+    await this.organizations.annulerRetrait(w.organizationId, Number(w.amount));
+    this.logger.warn(`Retrait #${w.id} en échec : ${raison}`);
   }
 
   /**
@@ -175,11 +257,7 @@ export class WithdrawalsService implements OnModuleInit {
         .set({
           status: resultat.statut,
           externalReference: resultat.externalReference,
-          notes:
-            dto.notes ??
-            (resultat.statut === "processing"
-              ? "Transfert PI-SPI initié (en cours de traitement)"
-              : "Versement PI-SPI effectué"),
+          notes: dto.notes ?? resultat.note,
         })
         .where(eq(withdrawals.id, id));
       return this.getById(id);
@@ -207,20 +285,21 @@ export class WithdrawalsService implements OnModuleInit {
   }
 
   /**
-   * Verse réellement le montant à l'agence via la plateforme PI-SPI :
-   * l'alias PI-SPI de l'agence (base kioskfy) est envoyé au SaaS, qui le
-   * résout vers le compte bénéficiaire et exécute le transfert.
+   * Verse le montant à l'agence via la plateforme PI-SPI.
+   *
+   * Deux cas (selon la nature de l'alias de l'agence) :
+   * - alias attaché à un de NOS comptes → transfert intra-comptes immédiat ;
+   * - alias CLIENT du réseau (agence = cliente, catégorie P au RAC) → la
+   *   plateforme n'autorise pas le push : la demande passe en `processing`
+   *   avec la consigne d'initier la demande côté simulateur ; la
+   *   réconciliation se fait automatiquement via le journal des événements.
    */
   private async verserViaPispi(w: {
     id: number;
     organizationId: string;
     amount: string;
   }): Promise<ResultatVersement> {
-    const [org] = await this.db
-      .select({ pispiAlias: orgsTable.pispiAlias })
-      .from(orgsTable)
-      .where(eq(orgsTable.id, w.organizationId));
-    const alias = org?.pispiAlias;
+    const alias = await this.aliasAgence(w.organizationId);
     if (!alias) {
       throw new BadRequestException(
         "L'agence n'a pas d'alias PI-SPI enregistré (paramètres de l'agence) — impossible de verser",
@@ -239,15 +318,24 @@ export class WithdrawalsService implements OnModuleInit {
       }),
       signal: AbortSignal.timeout(15_000),
     });
+
     if (!res.ok) {
       const texte = (await res.text()).slice(0, 300);
-      // 404 du SaaS = alias/beneficiaire invalide : erreur claire (400),
-      // pas une panne de passerelle (502).
-      if (res.status === 404) {
-        throw new BadRequestException(
-          texte.replace(/^.*"message":"([^"]+)".*$/s, '$1') ||
-            'Alias PI-SPI du bénéficiaire introuvable',
-        );
+      // 4xx du SaaS/plateforme : alias CLIENT du réseau (impossible de
+      // pousser un paiement vers un tiers) — on passe en attente du côté
+      // agence plutôt que d'échouer.
+      if (res.status >= 400 && res.status < 500) {
+        return {
+          statut: "processing",
+          externalReference: null,
+          note:
+            `Agence cliente du réseau (alias tiers) : initiez dans le ` +
+            `simulateur PI-SPI une demande de paiement de l'agence vers ` +
+            `kioskfy (payeur 8350050d-6f94-481c-8caa-2b59b1a3664e, ` +
+            `bénéficiaire ${alias}, motif « Retrait kioskfy #${w.id} »). ` +
+            `Le statut passera automatiquement à « Payée » à la réception ` +
+            `de la notification de la plateforme.`,
+        };
       }
       throw new BadGatewayException(
         `Transfert PI-SPI refusé (${res.status}) : ${texte}`,
@@ -263,10 +351,15 @@ export class WithdrawalsService implements OnModuleInit {
       return {
         statut: "completed",
         externalReference: transfert.end2endId ?? reference,
+        note: "Versement PI-SPI effectué",
       };
     }
     if (statut === "INITIE") {
-      return { statut: "processing", externalReference: reference };
+      return {
+        statut: "processing",
+        externalReference: reference,
+        note: "Transfert PI-SPI initié (en cours de traitement)",
+      };
     }
     throw new BadGatewayException(
       `Statut de transfert inattendu : ${statut || "—"}`,
