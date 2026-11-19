@@ -31,43 +31,43 @@ export class WebhooksService {
   ) {}
 
   /**
-   * Vérifie la signature HMAC-SHA256 du corps brut contre le secret partagé
-   * `PISPI_WEBHOOK_SECRET`. Comparaison à temps constant.
+   * Vérifie l'en-tête `X-Signature` (HMAC-SHA256 du corps JSON, hex) contre
+   * le secret partagé `PISPI_WEBHOOK_SECRET`. Comparaison à temps constant,
+   * conforme à la spec officielle (guides/webhook-securiser).
    *
-   * Tolère les signatures hex (minuscules/majuscules), base64 et le préfixe
-   * `sha256=` (l'émetteur SaaS peut varier d'encodage selon sa version).
+   * Vérifie le corps brut ET sa re-sérialisation compacte pour absorber les
+   * écarts d'encodage entre l'émetteur et le récepteur.
    */
   verifierSignature(corpsBrut: string | Buffer, signature?: string): boolean {
     const secret = this.config.get<string>("PISPI_WEBHOOK_SECRET");
     if (!secret || !signature) return false;
 
-    const signatureNormee = signature.trim().replace(/^sha256=/i, "");
+    const signatureNormee = signature.trim().toLowerCase();
     if (!signatureNormee) return false;
 
-    const cles: Buffer[] = [Buffer.from(secret, "utf8")];
-    if (/^[0-9a-f]{64}$/i.test(secret)) cles.push(Buffer.from(secret, "hex"));
-    const decodeBase64 = Buffer.from(secret, "base64");
-    if (decodeBase64.length > 0) cles.push(decodeBase64);
+    const corps = Buffer.isBuffer(corpsBrut)
+      ? corpsBrut.toString("utf8")
+      : corpsBrut;
+    const candidats = [corps];
+    try {
+      const reparsé = JSON.stringify(JSON.parse(corps));
+      if (reparsé !== corps) candidats.push(reparsé);
+    } catch {
+      // Corps non-JSON : seule la forme brute est vérifiée.
+    }
 
-    for (const cle of cles) {
-      // Deux instances séparées : un second `digest()` sur le même objet
-      // HMAC renvoie une chaîne vide (objet déjà finalisé).
-      const hex = createHmac("sha256", cle).update(corpsBrut).digest("hex");
-      const b64 = createHmac("sha256", cle).update(corpsBrut).digest("base64");
-      for (const candidat of [hex, hex.toUpperCase(), b64]) {
-        if (candidat.length !== signatureNormee.length) continue;
-        try {
-          if (
-            timingSafeEqual(
-              Buffer.from(candidat, "utf8"),
-              Buffer.from(signatureNormee, "utf8"),
-            )
-          ) {
-            return true;
-          }
-        } catch {
-          // Longueurs égales vérifiées ci-dessus : ne devrait pas arriver.
-        }
+    for (const candidat of candidats) {
+      const attendu = createHmac("sha256", secret)
+        .update(candidat)
+        .digest("hex");
+      if (attendu.length !== signatureNormee.length) continue;
+      if (
+        timingSafeEqual(
+          Buffer.from(attendu, "utf8"),
+          Buffer.from(signatureNormee, "utf8"),
+        )
+      ) {
+        return true;
       }
     }
     return false;

@@ -1,9 +1,9 @@
-import { Body, Controller, Post, Req } from "@nestjs/common";
+import { Body, Controller, HttpCode, Post, Req } from "@nestjs/common";
 import type { RawBodyRequest } from "@nestjs/common";
 import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Public } from "@thallesp/nestjs-better-auth";
 import type { Request } from "express";
-import { Logger, BadRequestException } from "@nestjs/common";
+import { Logger, UnauthorizedException } from "@nestjs/common";
 import { WebhooksService, type PaiementRecuWebhook } from "./webhooks.service";
 
 /**
@@ -22,13 +22,14 @@ export class WebhooksController {
   constructor(private readonly webhooks: WebhooksService) {}
 
   @Post("pispi")
+  @HttpCode(204)
   @ApiOperation({
     summary: "Reçoit les notifications signées de l'API SaaS PI-SPI",
   })
   async recevoir(
     @Req() req: RawBodyRequest<Request>,
     @Body() body: PaiementRecuWebhook,
-  ) {
+  ): Promise<void> {
     const signature = req.header("x-signature");
     const corpsBrut: string | Buffer = req.rawBody ?? JSON.stringify(body);
 
@@ -38,12 +39,13 @@ export class WebhooksController {
           "PISPI_WEBHOOK_SECRET est défini et identique au callbackSecret " +
           "envoyé à l'API SaaS (sinon le secret de la notification ne peut pas être vérifié)",
       );
-      throw new BadRequestException("Signature invalide");
+      throw new UnauthorizedException("Signature invalide");
     }
 
     const evenement = body.event ?? "INCONNU";
     this.logger.log(`Notification ${evenement} reçue`);
-    await this.webhooks.traiter(evenement, body);
-    return { received: true, event: evenement };
+    // Acquittement 204 conforme à la spec : le traitement métier ne doit
+    // pas retarder la réponse (timeout de la plateforme émettrice).
+    void this.webhooks.traiter(evenement, body);
   }
 }
