@@ -15,6 +15,13 @@
       "when": 1794857390371,
       "tag": "0001_wide_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1795131547057,
+      "tag": "0002_chief_ultragirl",
+      "breakpoints": true
     }
   ]
 }

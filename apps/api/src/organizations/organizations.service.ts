@@ -133,6 +133,8 @@ export class OrganizationsService {
           description: dto.description,
           price: dto.price ?? null,
           pispiAlias: dto.pispiAlias ?? null,
+          pispiIban: dto.pispiIban ?? null,
+          pispiParticipant: dto.pispiParticipant ?? null,
           newspaperPrice: dto.newspaperPrice
             ? String(dto.newspaperPrice)
             : null,
@@ -189,6 +191,9 @@ export class OrganizationsService {
     if (dto.logo !== undefined) updates.logo = dto.logo;
     if (dto.logoUploadId !== undefined) updates.logoUploadId = dto.logoUploadId;
     if (dto.pispiAlias !== undefined) updates.pispiAlias = dto.pispiAlias;
+    if (dto.pispiIban !== undefined) updates.pispiIban = dto.pispiIban;
+    if (dto.pispiParticipant !== undefined)
+      updates.pispiParticipant = dto.pispiParticipant;
     if (dto.newspaperPrice !== undefined) {
       updates.newspaperPrice =
         dto.newspaperPrice === null ? null : String(dto.newspaperPrice);
@@ -329,6 +334,8 @@ export class OrganizationsService {
       price: org.price,
       suspended: org.suspended ?? false,
       pispiAlias: org.pispiAlias ?? null,
+      pispiIban: org.pispiIban ?? null,
+      pispiParticipant: org.pispiParticipant ?? null,
       newspaperPrice:
         org.newspaperPrice === null || org.newspaperPrice === undefined
           ? null

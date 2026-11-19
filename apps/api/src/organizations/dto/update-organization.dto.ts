@@ -79,6 +79,24 @@ export class UpdateOrganizationDto {
   @IsString()
   pispiAlias?: string | null;
 
+  @ApiPropertyOptional({
+    description:
+      "IBAN PI-SPI du compte de l'agence chez une banque (alternative à " +
+      "l'alias pour recevoir ses gains)",
+    example: "SN15SN0150101307430029018",
+  })
+  @IsOptional()
+  @IsString()
+  pispiIban?: string | null;
+
+  @ApiPropertyOptional({
+    description: "Code membre du participant destinataire (banque) pour l'IBAN",
+    example: "SNB015",
+  })
+  @IsOptional()
+  @IsString()
+  pispiParticipant?: string | null;
+
   @ApiPropertyOptional({ description: "Métadonnées JSON (string)" })
   @IsOptional()
   @IsString()

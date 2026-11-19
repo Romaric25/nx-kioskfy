@@ -68,6 +68,8 @@ interface SettingsFormValues {
   phone: string;
   description: string;
   pispiAlias: string;
+  pispiIban: string;
+  pispiParticipant: string;
   newspaperPrice: string;
   logoFile: File | null;
 }
@@ -254,6 +256,8 @@ function SettingsEditor({
       phone: organization.phone,
       description: organization.description ?? "",
       pispiAlias: organization.pispiAlias ?? "",
+      pispiIban: organization.pispiIban ?? "",
+      pispiParticipant: organization.pispiParticipant ?? "",
       newspaperPrice:
         organization.newspaperPrice != null
           ? String(organization.newspaperPrice)
@@ -300,6 +304,8 @@ function SettingsEditor({
           address: value.address,
           description: value.description,
           pispiAlias: value.pispiAlias.trim() || null,
+          pispiIban: value.pispiIban.trim() || null,
+          pispiParticipant: value.pispiParticipant.trim() || null,
           newspaperPrice:
             value.newspaperPrice.trim() === ""
               ? null
@@ -633,6 +639,50 @@ function SettingsEditor({
                     <p className="text-xs text-muted-foreground">
                       Alias SHID de votre compte PI-SPI : c'est vers ce compte
                       que vos gains seront reversés.
+                    </p>
+                  </Field>
+                )}
+              </form.Field>
+
+              <form.Field name="pispiIban">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="settings-org-pispi-iban">
+                      IBAN PI-SPI (alternative à l'alias)
+                    </FieldLabel>
+                    <Input
+                      id="settings-org-pispi-iban"
+                      placeholder="ex. SN15SN0150101307430029018"
+                      disabled={isSubmitting}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      IBAN de votre compte bancaire PI-SPI : utilisez l'alias
+                      OU l'IBAN pour recevoir vos gains.
+                    </p>
+                  </Field>
+                )}
+              </form.Field>
+
+              <form.Field name="pispiParticipant">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="settings-org-pispi-participant">
+                      Participant destinataire (code banque)
+                    </FieldLabel>
+                    <Input
+                      id="settings-org-pispi-participant"
+                      placeholder="ex. SNB015"
+                      disabled={isSubmitting}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Code membre de la banque détentrice de l'IBAN (obtenu
+                      via la liste des participants PI-SPI).
                     </p>
                   </Field>
                 )}

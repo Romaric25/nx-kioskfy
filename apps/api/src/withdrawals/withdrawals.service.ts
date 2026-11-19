@@ -112,13 +112,25 @@ export class WithdrawalsService implements OnModuleInit {
     this.logger.warn(`Retrait #${w.id} en échec : ${raison}`);
   }
 
-  /** Alias PI-SPI de l'agence (table organizations de la base kioskfy). */
-  private async aliasAgence(organizationId: string): Promise<string | null> {
+  /** Identifiants de versement de l'agence : alias, IBAN et participant. */
+  private async infosVersementAgence(organizationId: string): Promise<{
+    pispiAlias: string | null;
+    pispiIban: string | null;
+    pispiParticipant: string | null;
+  }> {
     const [org] = await this.db
-      .select({ pispiAlias: orgsTable.pispiAlias })
+      .select({
+        pispiAlias: orgsTable.pispiAlias,
+        pispiIban: orgsTable.pispiIban,
+        pispiParticipant: orgsTable.pispiParticipant,
+      })
       .from(orgsTable)
       .where(eq(orgsTable.id, organizationId));
-    return org?.pispiAlias ?? null;
+    return {
+      pispiAlias: org?.pispiAlias ?? null,
+      pispiIban: org?.pispiIban ?? null,
+      pispiParticipant: org?.pispiParticipant ?? null,
+    };
   }
 
   /**
@@ -231,23 +243,36 @@ export class WithdrawalsService implements OnModuleInit {
     organizationId: string;
     amount: string;
   }): Promise<ResultatVersement> {
-    const alias = await this.aliasAgence(w.organizationId);
-    if (!alias) {
+    const reference = `WDR-${w.id}`;
+    const infos = await this.infosVersementAgence(w.organizationId);
+    // Parcours bénéficiaire (guide « Envoyer un paiement ») : alias RAC
+    // en priorité, sinon IBAN + participant destinataire.
+    const corps: Record<string, unknown> = {
+      reference,
+      montant: Number(w.amount),
+      motif: `Retrait kioskfy #${w.id}`,
+    };
+    if (infos.pispiAlias) {
+      corps.payeAlias = infos.pispiAlias;
+    } else if (infos.pispiIban && infos.pispiParticipant) {
+      corps.payeIban = infos.pispiIban;
+      corps.payeParticipant = infos.pispiParticipant;
+    } else if (infos.pispiIban) {
       throw new BadRequestException(
-        "L'agence n'a pas d'alias PI-SPI enregistré (paramètres de l'agence) — impossible de verser",
+        "IBAN de l'agence sans participant destinataire : renseignez le code " +
+          "du participant (banque) dans les paramètres de l'agence",
+      );
+    } else {
+      throw new BadRequestException(
+        "L'agence n'a ni alias PI-SPI ni IBAN enregistré (paramètres de " +
+          "l'agence) — impossible de verser",
       );
     }
 
-    const reference = `WDR-${w.id}`;
     const res = await fetch(`${this.pispiSaasApiUrl}/pispi/versements`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        reference,
-        montant: Number(w.amount),
-        motif: `Retrait kioskfy #${w.id}`,
-        payeAlias: alias,
-      }),
+      body: JSON.stringify(corps),
       signal: AbortSignal.timeout(15_000),
     });
 

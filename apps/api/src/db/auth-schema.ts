@@ -110,6 +110,12 @@ export const organizations = mysqlTable(
     // Alias PI-SPI (BCEAO) de l'agence : utilisé pour lui reverser ses gains
     // (ex. alias SHID du compte de l'agence chez un participant PI-SPI).
     pispiAlias: varchar("pispiAlias", { length: 255 }),
+    // IBAN du compte de l'agence chez un participant bancaire (alternative à
+    // l'alias pour recevoir ses gains — guide « Envoyer un paiement »).
+    pispiIban: varchar("pispiIban", { length: 64 }),
+    // Code membre du participant destinataire (ex. banque) quand le versement
+    // passe par IBAN ou numéro de compte.
+    pispiParticipant: varchar("pispiParticipant", { length: 32 }),
     // Prix fixe du journal vendu par l'agence, hors commission kioskfy
     // (montant net perçu par l'agence par exemplaire).
     newspaperPrice: decimal("newspaperPrice", { precision: 10, scale: 2 }),

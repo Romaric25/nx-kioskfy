@@ -138,6 +138,10 @@ export interface OrganizationItem {
   metadata?: Record<string, unknown> | string | null;
   /** Rôle du membre connecté dans cette organisation (owner, admin…). */
   role?: string | null;
+  /** IBAN PI-SPI de l'agence chez une banque (alternative à l'alias). */
+  pispiIban?: string | null;
+  /** Code membre du participant destinataire pour le versement par IBAN. */
+  pispiParticipant?: string | null;
   logoUpload?: {
     id: number;
     filename: string;
@@ -173,6 +177,10 @@ export interface CreateOrganizationInput {
   logoUploadId?: number;
   /** Alias PI-SPI (BCEAO) pour recevoir les gains de l'agence. */
   pispiAlias?: string | null;
+  /** IBAN PI-SPI de l'agence chez une banque (alternative à l'alias). */
+  pispiIban?: string | null;
+  /** Code membre du participant destinataire pour le versement par IBAN. */
+  pispiParticipant?: string | null;
   /** Prix fixe du journal, hors commission kioskfy (montant net par exemplaire). */
   newspaperPrice?: number | null;
   metadata?: string | null;
@@ -192,6 +200,10 @@ export interface UpdateOrganizationInput {
   logoUploadId?: number;
   /** Alias PI-SPI (BCEAO) pour recevoir les gains de l'agence. */
   pispiAlias?: string | null;
+  /** IBAN PI-SPI de l'agence chez une banque (alternative à l'alias). */
+  pispiIban?: string | null;
+  /** Code membre du participant destinataire pour le versement par IBAN. */
+  pispiParticipant?: string | null;
   /** Prix fixe du journal, hors commission kioskfy (montant net par exemplaire). */
   newspaperPrice?: number | null;
 }
