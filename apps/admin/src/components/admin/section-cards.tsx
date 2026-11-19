@@ -1,4 +1,4 @@
-import { Building2, ShoppingBag, Users, Wallet } from "lucide-react";
+import { Building2, Percent, ShoppingBag, Users, Wallet } from "lucide-react";
 import {
   Card,
   CardDescription,
@@ -35,10 +35,28 @@ export function SectionCards({ stats, loading }: SectionCardsProps) {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
           <div className="text-muted-foreground">
-            Commission plateforme :{" "}
-            <span className="font-medium text-foreground">
-              {loading ? "—" : formatCurrency(stats?.totalPlatformRevenue ?? 0)}
-            </span>
+            Ventes payées sur la plateforme
+          </div>
+        </CardFooter>
+      </Card>
+
+      <Card className="@container/card @5xl/main:col-span-2">
+        <CardHeader className="relative">
+          <CardDescription>Commissions accumulées</CardDescription>
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+            {loading ? (
+              <Skeleton className="h-8 w-32" />
+            ) : (
+              formatCurrency(stats?.totalPlatformRevenue ?? 0)
+            )}
+          </CardTitle>
+          <div className="absolute right-4 top-4">
+            <Percent className="size-4 text-muted-foreground" />
+          </div>
+        </CardHeader>
+        <CardFooter className="flex-col items-start gap-1 text-sm">
+          <div className="text-muted-foreground">
+            Part conservée par la plateforme sur chaque vente payée
           </div>
         </CardFooter>
       </Card>
