@@ -1,9 +1,14 @@
-import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { AuthGuard, Roles, Session, type UserSession } from "@thallesp/nestjs-better-auth";
 import type { Auth } from "../auth";
 import { WithdrawalsService } from "./withdrawals.service";
-import { CreateWithdrawalDto, CancelWithdrawalDto, PaginationQuery } from "./dto/withdrawal.dto";
+import {
+  CreateWithdrawalDto,
+  CancelWithdrawalDto,
+  TraiterWithdrawalDto,
+  PaginationQuery,
+} from "./dto/withdrawal.dto";
 
 type AuthSession = UserSession<Auth>;
 
@@ -44,6 +49,19 @@ export class WithdrawalsController {
   @Get(":id")
   @ApiOperation({ summary: "Détail d'un retrait" })
   getById(@Param("id", ParseIntPipe) id: number) { return this.withdrawalsService.getById(id); }
+
+  @Patch(":id")
+  @Roles(["admin", "superadmin"])
+  @ApiOperation({
+    summary:
+      "Admin — Traiter une demande de retrait (payée / échouée / annulée)",
+  })
+  traiter(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: TraiterWithdrawalDto,
+  ) {
+    return this.withdrawalsService.traiter(id, dto);
+  }
 
   @Delete(":id")
   @ApiOperation({ summary: "Annuler un retrait (propriétaire uniquement)" })

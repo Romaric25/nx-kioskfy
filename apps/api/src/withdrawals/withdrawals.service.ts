@@ -3,7 +3,7 @@ import { DRIZZLE } from "../db";
 import { withdrawals, organizationBalances } from "../db/app-schema";
 import { eq } from "drizzle-orm";
 import type { Database } from "../db";
-import type { CreateWithdrawalDto } from "./dto/withdrawal.dto";
+import type { CreateWithdrawalDto, TraiterWithdrawalDto } from "./dto/withdrawal.dto";
 import { OrganizationsService } from "../organizations/organizations.service";
 
 @Injectable()
@@ -44,6 +44,40 @@ export class WithdrawalsService {
     await this.organizations.recordWithdrawal(dto.organizationId, dto.amount);
 
     return this.db.query.withdrawals.findFirst({ where: eq(withdrawals.id, result[0].insertId) });
+  }
+
+  /**
+   * Traitement d'une demande par l'administration : `completed` (versée),
+   * `failed` (rejetée) ou `cancelled`. En cas d'échec ou d'annulation, le
+   * solde de l'agence est restauré (l'argent n'a pas été versé).
+   */
+  async traiter(id: number, dto: TraiterWithdrawalDto) {
+    const w = await this.getById(id);
+    if (w.status !== "pending" && w.status !== "processing") {
+      throw new BadRequestException(
+        "Seules les demandes en attente ou en cours peuvent être traitées",
+      );
+    }
+
+    await this.db
+      .update(withdrawals)
+      .set({
+        status: dto.statut,
+        ...(dto.externalReference !== undefined
+          ? { externalReference: dto.externalReference }
+          : {}),
+        ...(dto.notes !== undefined || dto.reason !== undefined
+          ? { notes: dto.reason ?? dto.notes ?? null }
+          : {}),
+      })
+      .where(eq(withdrawals.id, id));
+
+    // Échec ou annulation : restauration du solde débité à la demande.
+    if (dto.statut === "failed" || dto.statut === "cancelled") {
+      await this.organizations.annulerRetrait(w.organizationId, Number(w.amount));
+    }
+
+    return this.getById(id);
   }
 
   async getAll(limit = 50, offset = 0) {

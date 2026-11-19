@@ -83,7 +83,7 @@ export class WithdrawalsResource {
     return this.fetch("/withdrawals", buildInit("POST", opts, data));
   }
 
-  /** Cancel a withdrawal request. */
+  /** Cancel a withdrawal request (owner de l'agence). */
   async cancel(
     id: number,
     reason?: string,
@@ -92,6 +92,25 @@ export class WithdrawalsResource {
     return this.fetch(
       `/withdrawals/${id}`,
       buildInit("DELETE", opts, reason ? { reason } : undefined),
+    );
+  }
+
+  /**
+   * Admin/superadmin : traite une demande (completed / failed / cancelled).
+   */
+  async traiter(
+    id: number,
+    data: {
+      statut: "processing" | "completed" | "failed" | "cancelled";
+      externalReference?: string;
+      notes?: string;
+      reason?: string;
+    },
+    opts?: FetchOptions,
+  ): Promise<WithdrawalItem> {
+    return this.fetch(
+      `/withdrawals/${id}`,
+      buildInit("PATCH", opts, data),
     );
   }
 }

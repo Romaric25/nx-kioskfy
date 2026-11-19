@@ -6,7 +6,7 @@ import { api } from "../../lib/api";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { WithdrawalItem } from "@kioskfy/types";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Loader2, XCircle } from "lucide-react";
+import { Ban, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Badge } from "@kioskfy/ui";
 
 export const Route = createFileRoute("/admin/withdrawals")({ component: WithdrawalsPage });
@@ -19,7 +19,18 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   cancelled: "outline",
 };
 
-const CANCELABLE_STATUSES = new Set(["pending", "processing"]);
+const STATUS_LABEL: Record<string, string> = {
+  pending: "En attente",
+  processing: "En cours",
+  completed: "Payée",
+  failed: "Échouée",
+  cancelled: "Annulée",
+};
+
+const TRAITABLE_STATUSES = new Set(["pending", "processing"]);
+
+/** Action de traitement choisie dans le menu d'une ligne. */
+type TraitementAction = "completed" | "failed" | "cancelled";
 
 const baseColumns: ColumnDef<WithdrawalItem>[] = [
   { accessorKey: "id", header: "ID" },
@@ -37,8 +48,8 @@ const baseColumns: ColumnDef<WithdrawalItem>[] = [
     accessorKey: "status",
     header: "Statut",
     cell: ({ row }) => (
-      <Badge variant={STATUS_VARIANT[row.original.status] ?? "outline"} className="capitalize">
-        {row.original.status}
+      <Badge variant={STATUS_VARIANT[row.original.status] ?? "outline"}>
+        {STATUS_LABEL[row.original.status] ?? row.original.status}
       </Badge>
     ),
   },
@@ -58,7 +69,10 @@ function WithdrawalsPage() {
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pendingCancel, setPendingCancel] = useState<WithdrawalItem | null>(null);
+  const [pendingAction, setPendingAction] = useState<{
+    item: WithdrawalItem;
+    action: TraitementAction;
+  } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -77,19 +91,30 @@ function WithdrawalsPage() {
     load();
   }, [load]);
 
-  const handleCancel = useCallback(async () => {
-    if (!pendingCancel) return;
+  const handleTraiter = useCallback(async () => {
+    if (!pendingAction) return;
     setActionLoading(true);
     try {
-      await api.withdrawals.cancel(pendingCancel.id, "Annulé depuis l'administration");
-      setPendingCancel(null);
+      await api.withdrawals.traiter(pendingAction.item.id, {
+        statut: pendingAction.action,
+        ...(pendingAction.action === "completed"
+          ? { notes: "Versement effectué par l'administration" }
+          : {}),
+        ...(pendingAction.action === "failed"
+          ? { reason: "Demande rejetée par l'administration" }
+          : {}),
+        ...(pendingAction.action === "cancelled"
+          ? { reason: "Annulée depuis l'administration" }
+          : {}),
+      });
+      setPendingAction(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setActionLoading(false);
     }
-  }, [pendingCancel, load]);
+  }, [pendingAction, load]);
 
   const columns = useMemo<ColumnDef<WithdrawalItem>[]>(
     () => [
@@ -99,16 +124,35 @@ function WithdrawalsPage() {
         header: () => <span className="sr-only">Actions</span>,
         cell: ({ row }) => {
           const item = row.original;
+          const traitable = TRAITABLE_STATUSES.has(item.status);
           return (
             <RowActions
               actions={[
+                {
+                  label: "Marquer payée",
+                  icon: CheckCircle2,
+                  disabled: actionLoading,
+                  hidden: !traitable,
+                  onClick: () =>
+                    setPendingAction({ item, action: "completed" }),
+                },
+                {
+                  label: "Marquer échouée",
+                  icon: Ban,
+                  destructive: true,
+                  disabled: actionLoading,
+                  hidden: !traitable,
+                  onClick: () =>
+                    setPendingAction({ item, action: "failed" }),
+                },
                 {
                   label: "Annuler",
                   icon: XCircle,
                   destructive: true,
                   disabled: actionLoading,
-                  hidden: !CANCELABLE_STATUSES.has(item.status),
-                  onClick: () => setPendingCancel(item),
+                  hidden: !traitable,
+                  onClick: () =>
+                    setPendingAction({ item, action: "cancelled" }),
                 },
               ]}
             />
@@ -119,6 +163,27 @@ function WithdrawalsPage() {
     [actionLoading],
   );
 
+  const dialogs: Record<
+    TraitementAction,
+    { title: string; description: string; confirmLabel: string }
+  > = {
+    completed: {
+      title: "Marquer la demande comme payée ?",
+      description: `Le versement de ${pendingAction?.item.amount.toLocaleString("fr-FR")} ${pendingAction?.item.currency} sera enregistré comme effectué vers l'agence.`,
+      confirmLabel: "Marquer payée",
+    },
+    failed: {
+      title: "Marquer la demande comme échouée ?",
+      description: "La demande sera rejetée et le montant restauré sur le solde de l'agence.",
+      confirmLabel: "Marquer échouée",
+    },
+    cancelled: {
+      title: "Annuler cette demande ?",
+      description: `La demande de ${pendingAction?.item.amount.toLocaleString("fr-FR")} ${pendingAction?.item.currency} sera annulée et le solde de l'agence restauré.`,
+      confirmLabel: "Annuler la demande",
+    },
+  };
+
   if (loading) return <div className="flex h-96 items-center justify-center"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>;
   if (error) return <p className="rounded-md bg-destructive/10 px-4 py-2 text-sm text-destructive">{error}</p>;
 
@@ -126,18 +191,26 @@ function WithdrawalsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Retraits</h1>
-        <p className="text-sm text-muted-foreground">{withdrawals.length} demandes de retrait</p>
+        <p className="text-sm text-muted-foreground">
+          {withdrawals.length} demandes ·{" "}
+          {withdrawals.filter((w) => TRAITABLE_STATUSES.has(w.status)).length}{" "}
+          à traiter
+        </p>
       </div>
       <DataTable columns={columns} data={withdrawals} searchKey="status" />
 
       <ConfirmDialog
-        open={!!pendingCancel}
-        title="Annuler ce retrait ?"
-        description={`La demande de ${pendingCancel?.amount.toLocaleString("fr-FR")} ${pendingCancel?.currency} sera marquée comme annulée.`}
-        confirmLabel="Annuler le retrait"
+        open={!!pendingAction}
+        title={pendingAction ? dialogs[pendingAction.action].title : ""}
+        description={
+          pendingAction ? dialogs[pendingAction.action].description : ""
+        }
+        confirmLabel={
+          pendingAction ? dialogs[pendingAction.action].confirmLabel : ""
+        }
         loading={actionLoading}
-        onConfirm={handleCancel}
-        onCancel={() => setPendingCancel(null)}
+        onConfirm={handleTraiter}
+        onCancel={() => setPendingAction(null)}
       />
     </div>
   );

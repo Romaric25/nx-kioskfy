@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsNumber, IsOptional, IsInt, Min } from "class-validator";
+import { IsString, IsNumber, IsOptional, IsInt, Min, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateWithdrawalDto {
@@ -14,6 +14,21 @@ export class CreateWithdrawalDto {
 
 export class CancelWithdrawalDto {
   @ApiPropertyOptional() @IsOptional() @IsString() reason?: string;
+}
+
+/** Traitement d'une demande par l'administration (admin / superadmin). */
+export class TraiterWithdrawalDto {
+  @ApiProperty({ enum: ["processing", "completed", "failed", "cancelled"] })
+  @IsIn(["processing", "completed", "failed", "cancelled"])
+  statut!: "processing" | "completed" | "failed" | "cancelled";
+
+  @ApiPropertyOptional({ description: "Référence du versement PI-SPI effectué" })
+  @IsOptional() @IsString() externalReference?: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() notes?: string;
+
+  @ApiPropertyOptional({ description: "Motif en cas d'échec ou d'annulation" })
+  @IsOptional() @IsString() reason?: string;
 }
 
 export class PaginationQuery {
