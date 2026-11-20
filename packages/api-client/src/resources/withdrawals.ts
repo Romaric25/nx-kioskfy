@@ -50,6 +50,19 @@ export class WithdrawalsResource {
     );
   }
 
+  /**
+   * Admin : nombre de demandes de retrait à traiter (`pending` +
+   * `processing`) — badge de notification de la sidebar.
+   */
+  async countPending(
+    opts?: FetchOptions,
+  ): Promise<{ count: number }> {
+    return this.fetch(
+      "/withdrawals/count/pending",
+      buildInit("GET", opts),
+    );
+  }
+
   /** Retraits d'une organisation (propriétaire uniquement côté API). */
   async getByOrganization(
     orgId: string,

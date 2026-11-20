@@ -22,6 +22,7 @@ import {
 } from "@kioskfy/ui";
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
+import { useWithdrawalsPendingCount } from "../../hooks/use-withdrawals-pending-count";
 
 const data = {
   navMain: [
@@ -32,10 +33,19 @@ const data = {
     { title: "Utilisateurs", url: "/admin/users", icon: Users },
     { title: "Retraits", url: "/admin/withdrawals", icon: Wallet },
     { title: "Paramètres", url: "/admin/settings", icon: Settings },
-  ] as { title: string; url: string; icon: LucideIcon }[],
+  ] as { title: string; url: string; icon: LucideIcon; badge?: number }[],
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  // Badge de notification : nombre de retraits en attente de traitement.
+  const pendingWithdrawals = useWithdrawalsPendingCount();
+
+  const navMain = data.navMain.map((item) =>
+    item.url === "/admin/withdrawals"
+      ? { ...item, badge: pendingWithdrawals }
+      : item,
+  );
+
   return (
     <Sidebar collapsible="icon" variant="inset" {...props}>
       <SidebarHeader>
@@ -56,7 +66,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

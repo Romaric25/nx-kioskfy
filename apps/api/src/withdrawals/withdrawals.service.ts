@@ -11,7 +11,7 @@ import { ConfigService } from "@nestjs/config";
 import { DRIZZLE } from "../db";
 import { withdrawals, organizationBalances } from "../db/app-schema";
 import { organizations as orgsTable } from "../db/auth-schema";
-import { eq } from "drizzle-orm";
+import { eq, count, inArray } from "drizzle-orm";
 import type { Database } from "../db";
 import type { CreateWithdrawalDto, TraiterWithdrawalDto } from "./dto/withdrawal.dto";
 import { OrganizationsService } from "../organizations/organizations.service";
@@ -319,6 +319,18 @@ export class WithdrawalsService implements OnModuleInit {
       orderBy: (w, { desc }) => [desc(w.createdAt)],
       limit, offset,
     });
+  }
+
+  /**
+   * Nombre de demandes de retrait à traiter par l'admin (badge de la
+   * sidebar) : statuts `pending` et `processing`.
+   */
+  async countPending() {
+    const rows = await this.db
+      .select({ count: count() })
+      .from(withdrawals)
+      .where(inArray(withdrawals.status, ["pending", "processing"]));
+    return { count: rows[0]?.count ?? 0 };
   }
 
   /** Retraits d'une organisation — réservé au propriétaire de l'agence. */

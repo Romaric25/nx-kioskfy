@@ -46,6 +46,14 @@ export class WithdrawalsController {
     );
   }
 
+  // Déclaré AVANT `:id` pour ne pas être capturé par la route paramétrée.
+  @Get("count/pending")
+  @Roles(["admin", "superadmin"])
+  @ApiOperation({ summary: "Admin — Nombre de retraits à traiter (badge sidebar)" })
+  countPending() {
+    return this.withdrawalsService.countPending();
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Détail d'un retrait" })
   getById(@Param("id", ParseIntPipe) id: number) { return this.withdrawalsService.getById(id); }

@@ -4,6 +4,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@kioskfy/ui";
@@ -15,6 +16,8 @@ export function NavMain({
     title: string;
     url: string;
     icon: LucideIcon;
+    /** Compteur à afficher en badge de notification (masqué si 0). */
+    badge?: number;
   }[];
 }) {
   const pathname = useLocation().pathname;
@@ -39,6 +42,11 @@ export function NavMain({
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>
+              {item.badge != null && item.badge > 0 && (
+                <SidebarMenuBadge>
+                  {item.badge > 99 ? "99+" : item.badge}
+                </SidebarMenuBadge>
+              )}
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
