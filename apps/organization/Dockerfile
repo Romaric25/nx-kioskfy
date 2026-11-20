@@ -68,5 +68,9 @@ COPY --from=build /app/apps/organization/dist ./apps/organization/dist
 WORKDIR /app/apps/organization
 EXPOSE 3002
 
+# Liveness : `vite preview` répond 200 sur la racine du SPA.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://localhost:3002/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 # `vite preview` serves the built SSR handler + static assets.
 CMD ["npx", "vite", "preview", "--host", "--port", "3002"]

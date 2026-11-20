@@ -71,5 +71,10 @@ COPY apps/api/package.json ./apps/api/package.json
 WORKDIR /app/apps/api
 EXPOSE 3000
 
+# Liveness : l'endpoint public /api/health répond 200 tant que le serveur
+# tourne. Node 24 embarque fetch — pas de dépendance supplémentaire.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 # Configuration comes from the environment (see apps/api/.env.example).
 CMD ["node", "dist/src/main.js"]
