@@ -55,4 +55,15 @@ export class PaymentsController {
   creerReglement(@Body() dto: PispiReglementDto) {
     return this.paymentsService.creerReglementSaaS(dto.txId);
   }
+
+  @Get("statut/:paymentId")
+  @Public()
+  @ApiOperation({
+    summary:
+      "Statut consolidé d'un paiement par paymentId (utilisé par la page de " +
+      "succès pour décider de la redirection)",
+  })
+  statutPaiement(@Param("paymentId") paymentId: string) {
+    return this.paymentsService.statutPaiement(paymentId);
+  }
 }

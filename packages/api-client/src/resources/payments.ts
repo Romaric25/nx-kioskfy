@@ -78,6 +78,20 @@ export class PaymentsResource {
   }
 
   /**
+   * Statut consolidé d'un paiement par paymentId (commandes kioskfy) —
+   * utilisé par la page de succès pour décider de la redirection.
+   */
+  async getStatut(
+    paymentId: string,
+    opts?: FetchOptions,
+  ): Promise<{ success: boolean; statut: string; orderIds: string[] }> {
+    return this.fetch(
+      `/payments/statut/${encodeURIComponent(paymentId)}`,
+      buildInit("GET", opts),
+    );
+  }
+
+  /**
    * Crée le règlement escrow chez l'API SaaS PI-SPI pour le txId donné.
    * Le SaaS notifiera ensuite kioskfy par webhook au PAIEMENT_RECU.
    */

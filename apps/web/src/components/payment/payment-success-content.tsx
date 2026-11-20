@@ -59,6 +59,30 @@ export function PaymentSuccessContent({
     isPispi ? effectivePaymentId : null,
   );
 
+  // Vérification directe par paymentId (source simple et fiable) : poll
+  // toutes les 3 s, y compris quand l'onglet est en arrière-plan.
+  const { data: statutPaiement } = useQuery({
+    queryKey: ["payment", "statut", effectivePaymentId],
+    queryFn: () =>
+      api.payments.getStatut(effectivePaymentId) as Promise<{
+        success: boolean;
+        statut: string;
+        orderIds: string[];
+      }>,
+    enabled: isPispi && !!effectivePaymentId,
+    retry: 1,
+    refetchInterval: (query) => {
+      const statut = String(query.state.data?.statut ?? "").toUpperCase();
+      if (statut === "COMPLETED" || statut === "ECHEC" || statut === "INTROUVABLE") {
+        return false;
+      }
+      return 3000;
+    },
+    refetchIntervalInBackground: true,
+  });
+
+  const paiementConfirmeParStatut = statutPaiement?.success === true;
+
   // Fallback fiable : les commandes sont marquées « completed » par le
   // webhook PI-SPI. Si la confirmation est indisponible mais qu'une commande
   // liée à ce paiement est déjà payée, on considère le paiement réussi
@@ -87,7 +111,7 @@ export function PaymentSuccessContent({
   const paymentId = effectivePaymentId;
 
   const isPaymentSuccessful = isPispi
-    ? pispiConfirm?.success === true || ordersConfirmed
+    ? pispiConfirm?.success === true || ordersConfirmed || paiementConfirmeParStatut
     : paymentVerify?.data?.status === "success";
 
   const hasProcessedPayment = useRef(false);

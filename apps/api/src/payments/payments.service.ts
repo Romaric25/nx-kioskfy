@@ -37,6 +37,29 @@ export class PaymentsService implements OnModuleInit {
     );
   }
 
+  /**
+   * Statut consolidé d'un paiement par paymentId, dérivé des commandes :
+   * `COMPLETED` (toutes payées), `ECHEC` (toutes en échec/remboursées),
+   * `EN_ATTENTE` sinon. `INTROUVABLE` si aucune commande ne correspond.
+   * C'est la source simple qu'utilise la page de succès pour se rediriger.
+   */
+  async statutPaiement(paymentId: string) {
+    const found = await this.db.query.orders.findMany({
+      where: eq(orders.paymentId, paymentId),
+    });
+    if (found.length === 0) {
+      return { success: false, statut: "INTROUVABLE", orderIds: [] };
+    }
+    const orderIds = found.map((o) => o.id);
+    if (found.every((o) => o.status === "completed")) {
+      return { success: true, statut: "COMPLETED", orderIds };
+    }
+    if (found.every((o) => o.status === "failed" || o.status === "refunded")) {
+      return { success: false, statut: "ECHEC", orderIds };
+    }
+    return { success: false, statut: "EN_ATTENTE", orderIds };
+  }
+
   private async reconcilierPaiementsPispi(): Promise<void> {
     try {
       const enAttente = await this.db.query.orders.findMany({
