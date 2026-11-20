@@ -1,8 +1,8 @@
-import { Injectable, Inject, NotFoundException, Logger, ServiceUnavailableException } from "@nestjs/common";
+import { Injectable, Inject, NotFoundException, Logger, ServiceUnavailableException, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { DRIZZLE } from "../db";
 import { orders, revenueShares, organizationBalances, siteSettings } from "../db/app-schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, like, sql } from "drizzle-orm";
 import type { Database } from "../db";
 
 /** Informations du payeur PI-SPI (webhook ou interrogation du SaaS). */
@@ -12,14 +12,64 @@ export interface InfosPayeur {
   payeurPays?: string;
 }
 
+/** Période de réconciliation des paiements PI-SPI (commandes RTP en attente). */
+const RECONCILIATION_PISPI_MS = 30_000;
+
 @Injectable()
-export class PaymentsService {
+export class PaymentsService implements OnModuleInit {
   private readonly logger = new Logger(PaymentsService.name);
 
   constructor(
     private readonly config: ConfigService,
     @Inject(DRIZZLE) private db: Database,
   ) {}
+
+  /**
+   * Filet de sécurité : les commandes RTP en attente sont confirmées côté
+   * serveur toutes les 30 s, indépendamment du webhook et de la page de
+   * succès du navigateur. Dès que la demande est IRREVOCABLE chez le SaaS,
+   * les commandes sont marquées payées (idempotent).
+   */
+  onModuleInit(): void {
+    setInterval(
+      () => void this.reconcilierPaiementsPispi(),
+      RECONCILIATION_PISPI_MS,
+    );
+  }
+
+  private async reconcilierPaiementsPispi(): Promise<void> {
+    try {
+      const enAttente = await this.db.query.orders.findMany({
+        where: and(
+          eq(orders.status, "pending"),
+          like(orders.paymentId, "RTP-%"),
+        ),
+        limit: 50,
+      });
+      const txIds = [
+        ...new Set(
+          enAttente
+            .map((o) => o.paymentId)
+            .filter((id): id is string => typeof id === "string" && id.length > 0),
+        ),
+      ];
+      for (const txId of txIds) {
+        try {
+          await this.confirmPispiPayment(txId);
+        } catch (error) {
+          // Demande pas encore confirmée ou erreur transitoire : on
+          // réessaiera au prochain passage.
+          this.logger.debug(
+            `Réconciliation PI-SPI ${txId} impossible : ${(error as Error).message}`,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Réconciliation PI-SPI interrompue : ${(error as Error).message}`,
+      );
+    }
+  }
 
   private get host() { return this.config.getOrThrow<string>("MONEROO_HOST"); }
   private get secretKey() { return this.config.getOrThrow<string>("MONEROO_SECRET_KEY"); }
