@@ -38,6 +38,9 @@ export interface PispiCheckoutProps {
 const BUTTON_SELECTOR = 'span[data-pispi-checkout="button"]';
 const MODAL_SELECTOR = 'div[data-pispi-checkout="modal"]';
 
+/** Statuts de la plateforme qui signifient « paiement reçu ». */
+const STATUTS_SUCCES = new Set(["IRREVOCABLE", "ACCEPTE", "ACCEPTEE"]);
+
 /**
  * Masque le logo du bouton PI-SPI. Le widget ne propose pas d'option pour
  * ça : son bouton est rendu dans un shadow DOM ouvert, on cache donc
@@ -114,6 +117,55 @@ export function PispiCheckout({
   linkOrdersRef.current = linkOrdersToPayment;
   initialAliasRef.current = initialAlias;
 
+  // txId de la demande en cours + verrou anti double-fermeture.
+  const txIdRef = useRef<string | null>(null);
+  const autoClosedRef = useRef(false);
+
+  /**
+   * Fermeture automatique du modal dès que le paiement est reçu : le SDK
+   * poll lui-même le statut mais ne ferme pas le modal tout seul (il
+   * affiche l'écran de succès et attend l'utilisateur). On surveille donc
+   * en parallèle et, dès IRREVOCABLE, on ferme le modal et on notifie le
+   * parent — qui vide le panier et redirige vers la page de succès.
+   */
+  useEffect(() => {
+    const fermerAuto = (txId: string) => {
+      if (autoClosedRef.current) return;
+      autoClosedRef.current = true;
+      document.body
+        .querySelectorAll(MODAL_SELECTOR)
+        .forEach((el) => el.remove());
+      document.documentElement.style.overflow = "";
+      onCloseRef.current({
+        success: true,
+        status: "success",
+        txId,
+        invoiceUrl: undefined,
+      });
+    };
+
+    const surveiller = () => {
+      const txId = txIdRef.current;
+      if (!txId || autoClosedRef.current) return;
+      void getPispiPaymentStatus(txId)
+        .then((res) => {
+          const statut = String(res?.statut ?? "").toUpperCase();
+          if (STATUTS_SUCCES.has(statut)) fermerAuto(txId);
+        })
+        .catch(() => undefined); // transitoire : on réessaiera au tick suivant
+    };
+
+    const timer = setInterval(surveiller, 2_000);
+    return () => {
+      clearInterval(timer);
+      // Si le composant se démonte, on libère aussi le modal du widget.
+      document.body
+        .querySelectorAll(MODAL_SELECTOR)
+        .forEach((el) => el.remove());
+      document.documentElement.style.overflow = "";
+    };
+  }, []);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -140,6 +192,7 @@ export function PispiCheckout({
         const txId = `RTP-${Date.now().toString(36)}${Math.random()
           .toString(36)
           .slice(2, 8)}`.slice(0, 35);
+        txIdRef.current = txId;
         await linkOrdersRef.current(orderIds, txId);
 
         // 3. Envoyer la demande de paiement à l'API SaaS PI-SPI.

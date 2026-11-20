@@ -80,6 +80,11 @@ export function Cart() {
 
   /** Fermeture du widget PI-SPI : succès, rejet ou abandon. */
   const handlePispiClose = (result: PispiCheckoutCloseResult) => {
+    if (result.success) {
+      // Paiement confirmé côté plateforme : on vide le panier immédiatement
+      // (la page de succès confirme ensuite les commandes côté serveur).
+      cartStore.clearCart();
+    }
     if (result.txId) {
       // Dès qu'une demande a été créée, on laisse la page de succès décider :
       // même en cas de timeout du widget, le paiement a pu être reçu
