@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Image } from "@unpic/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -78,30 +78,43 @@ export function Cart() {
     return { orderIds: createdOrders.map((order) => order.id) };
   };
 
-  /** Fermeture du widget PI-SPI : succès, rejet ou abandon. */
+  /** Verrou anti double-fermeture : le SDK peut rappeler `onClose` (sans
+   *  succès) au démontage après notre fermeture automatique — on ignore les
+   *  fermetures ultérieures pour le même txId afin de ne pas écraser le
+   *  statut déjà transmis à la page de succès. */
+  const closedTxIdRef = useRef<string | null>(null);
+
+  /** Fermeture du widget PI-SPI : succès confirmé, rejet ou abandon. */
   const handlePispiClose = (result: PispiCheckoutCloseResult) => {
-    if (result.success) {
-      // Paiement confirmé côté plateforme : on vide le panier immédiatement
-      // (la page de succès confirme ensuite les commandes côté serveur).
-      cartStore.clearCart();
-    }
-    if (result.txId) {
-      // Dès qu'une demande a été créée, on laisse la page de succès décider :
-      // même en cas de timeout du widget, le paiement a pu être reçu
-      // (webhook) — la page confirme côté serveur et vide le panier.
-      navigate({
-        to: "/payment/success",
-        search: { paymentId: result.txId } as never,
-      });
+    if (!result.txId) {
+      if (result.status === "rejected") {
+        setErrorMessage("Le paiement PI-SPI a été rejeté. Veuillez réessayer.");
+      } else if (result.status === "timeout") {
+        setErrorMessage(
+          "Le paiement PI-SPI a expiré. Vérifiez vos notifications avant de réessayer.",
+        );
+      }
       return;
     }
-    if (result.status === "rejected") {
-      setErrorMessage("Le paiement PI-SPI a été rejeté. Veuillez réessayer.");
-    } else if (result.status === "timeout") {
-      setErrorMessage(
-        "Le paiement PI-SPI a expiré. Vérifiez vos notifications avant de réessayer.",
-      );
+    if (closedTxIdRef.current === result.txId) return;
+    closedTxIdRef.current = result.txId;
+
+    if (result.success) {
+      // Paiement IRREVOCABLE côté plateforme : le panier est vidé
+      // immédiatement et la page de succès s'affiche SANS vérification
+      // (le statut est transmis dans l'URL, il survit même au refresh).
+      cartStore.clearCart();
     }
+    // En cas de fermeture manuelle / timeout, on laisse la page de succès
+    // faire un contrôle serveur unique : le paiement a pu être reçu
+    // (webhook) même si le widget ne l'a pas confirmé.
+    navigate({
+      to: "/payment/success",
+      search: {
+        paymentId: result.txId,
+        ...(result.success ? { statut: "SUCCES" } : {}),
+      } as never,
+    });
   };
 
   if (items.length === 0) {

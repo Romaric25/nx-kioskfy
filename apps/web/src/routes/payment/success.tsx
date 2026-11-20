@@ -17,5 +17,10 @@ function PaymentSuccessPage() {
     string,
     string | undefined
   >;
-  return <PaymentSuccessContent urlPaymentId={search["paymentId"]} />;
+  return (
+    <PaymentSuccessContent
+      urlPaymentId={search["paymentId"]}
+      urlStatut={search["statut"]}
+    />
+  );
 }

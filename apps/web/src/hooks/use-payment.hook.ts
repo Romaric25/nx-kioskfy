@@ -4,7 +4,13 @@ import type { MonerooPaymentVerifyResponse } from "@kioskfy/types";
 
 /** Verify a Moneroo payment by id. */
 export function useVerifyPayment(paymentId: string | null) {
-  const { data: paymentVerify, isLoading, isError, error } = useQuery({
+  const {
+    data: paymentVerify,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["payment", "verify", paymentId],
     queryFn: async () => {
       if (!paymentId) {
@@ -16,7 +22,7 @@ export function useVerifyPayment(paymentId: string | null) {
     retry: false,
   });
 
-  return { paymentVerify, isLoading, isError, error };
+  return { paymentVerify, isLoading, isError, error, refetch };
 }
 
 /**
